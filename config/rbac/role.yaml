@@ -1,0 +1,59 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - db.qucheng.io
+  resources:
+  - dbservices
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db.qucheng.io
+  resources:
+  - dbservices/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - db.qucheng.io
+  resources:
+  - dbservices/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - op.qucheng.io
+  resources:
+  - backups
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - op.qucheng.io
+  resources:
+  - backups/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - op.qucheng.io
+  resources:
+  - backups/status
+  verbs:
+  - get
+  - patch
+  - update

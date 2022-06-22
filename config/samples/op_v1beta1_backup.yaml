@@ -1,0 +1,6 @@
+apiVersion: op.qucheng.io/v1beta1
+kind: Backup
+metadata:
+  name: backup-sample
+spec:
+  # TODO(user): Add fields here

@@ -1,0 +1,24 @@
+# permissions for end users to edit dbservices.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: dbservice-editor-role
+rules:
+- apiGroups:
+  - db.qucheng.io
+  resources:
+  - dbservices
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db.qucheng.io
+  resources:
+  - dbservices/status
+  verbs:
+  - get
