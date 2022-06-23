@@ -1,4 +1,4 @@
-domain: qucheng.io
+domain: easycorp.io
 layout:
 - go.kubebuilder.io/v3
 multigroup: true
@@ -11,36 +11,26 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  controller: true
-  domain: qucheng.io
-  group: db
+  domain: easycorp.io
+  group: qucheng
   kind: DbService
-  path: gitlab.zcorp.cc/pangu/cne-operator/api/v1beta1
+  path: gitlab.zcorp.cc/pangu/cne-operator/apis/qucheng/v1beta1
   version: v1beta1
 - api:
     crdVersion: v1
     namespaced: true
-  domain: qucheng.io
-  group: db
+  domain: easycorp.io
+  group: qucheng
   kind: Db
-  path: gitlab.zcorp.cc/pangu/cne-operator/api/v1beta1
+  path: gitlab.zcorp.cc/pangu/cne-operator/apis/qucheng/v1beta1
   version: v1beta1
 - api:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: qucheng.io
-  group: op
+  domain: easycorp.io
+  group: qucheng
   kind: Backup
-  path: gitlab.zcorp.cc/pangu/cne-operator/apis/op/v1beta1
-  version: v1beta1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: qucheng.io
-  group: op
-  kind: Restore
-  path: gitlab.zcorp.cc/pangu/cne-operator/apis/op/v1beta1
+  path: gitlab.zcorp.cc/pangu/cne-operator/apis/qucheng/v1beta1
   version: v1beta1
 version: "3"

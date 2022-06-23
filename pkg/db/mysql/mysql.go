@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	dbv1beta1 "gitlab.zcorp.cc/pangu/cne-operator/apis/db/v1beta1"
+	quchengv1beta1 "gitlab.zcorp.cc/pangu/cne-operator/apis/qucheng/v1beta1"
 	"gitlab.zcorp.cc/pangu/cne-operator/pkg/db"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -12,11 +12,11 @@ import (
 )
 
 type Parser struct {
-	c   client.Reader
-	obj *dbv1beta1.Db
+	c   client.Client
+	obj *quchengv1beta1.Db
 }
 
-func NewParser(c client.Reader, obj *dbv1beta1.Db) db.InterFace {
+func NewParser(c client.Client, obj *quchengv1beta1.Db) db.InterFace {
 	return &Parser{
 		c: c, obj: obj,
 	}
@@ -29,7 +29,7 @@ func (p *Parser) ParseAccessInfo() (*db.AccessInfo, error) {
 		dbServiceKey.Namespace = p.obj.Namespace
 	}
 
-	dbService := &dbv1beta1.DbService{}
+	dbService := &quchengv1beta1.DbService{}
 	if err := p.c.Get(context.TODO(), dbServiceKey, dbService); err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (p *Parser) ParseAccessInfo() (*db.AccessInfo, error) {
 	return &data, nil
 }
 
-func getSourceValue(c client.Reader, namespace string, v *dbv1beta1.ValueSource) (string, error) {
+func getSourceValue(c client.Client, namespace string, v *quchengv1beta1.ValueSource) (string, error) {
 	if v.ConfigMapKeyRef != nil {
 		return getConfigMapRefValue(c, namespace, v.ConfigMapKeyRef)
 	} else if v.SecretKeyRef != nil {
@@ -88,7 +88,7 @@ func getSourceValue(c client.Reader, namespace string, v *dbv1beta1.ValueSource)
 }
 
 // getSecretRefValue returns the value of a secret in the supplied namespace
-func getSecretRefValue(c client.Reader, namespace string, secretSelector *v1.SecretKeySelector) (string, error) {
+func getSecretRefValue(c client.Client, namespace string, secretSelector *v1.SecretKeySelector) (string, error) {
 	var err error
 	secret := &v1.Secret{}
 	secretKey := client.ObjectKey{Name: secretSelector.Name, Namespace: namespace}
@@ -104,7 +104,7 @@ func getSecretRefValue(c client.Reader, namespace string, secretSelector *v1.Sec
 }
 
 // getConfigMapRefValue returns the value of a configmap in the supplied namespace
-func getConfigMapRefValue(c client.Reader, namespace string, configMapSelector *v1.ConfigMapKeySelector) (string, error) {
+func getConfigMapRefValue(c client.Client, namespace string, configMapSelector *v1.ConfigMapKeySelector) (string, error) {
 	var err error
 	configMap := &v1.Secret{}
 	configMapKey := client.ObjectKey{Name: configMapSelector.Name, Namespace: namespace}

@@ -31,9 +31,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	dbv1beta1 "gitlab.zcorp.cc/pangu/cne-operator/apis/db/v1beta1"
-	opv1beta1 "gitlab.zcorp.cc/pangu/cne-operator/apis/op/v1beta1"
-	opcontrollers "gitlab.zcorp.cc/pangu/cne-operator/controllers/op"
+	quchengv1beta1 "gitlab.zcorp.cc/pangu/cne-operator/apis/qucheng/v1beta1"
+	quchengcontrollers "gitlab.zcorp.cc/pangu/cne-operator/controllers/qucheng"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -45,8 +44,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(dbv1beta1.AddToScheme(scheme))
-	utilruntime.Must(opv1beta1.AddToScheme(scheme))
+	utilruntime.Must(quchengv1beta1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -73,25 +71,18 @@ func main() {
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "8041c7a8.qucheng.io",
+		LeaderElectionID:       "8041c7a8.easycorp.io",
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 
-	if err = (&opcontrollers.BackupReconciler{
+	if err = (&quchengcontrollers.BackupReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Backup")
-		os.Exit(1)
-	}
-	if err = (&opcontrollers.RestoreReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Restore")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

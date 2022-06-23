@@ -1,6 +1,0 @@
-apiVersion: op.qucheng.io/v1beta1
-kind: Restore
-metadata:
-  name: restore-sample
-spec:
-  # TODO(user): Add fields here

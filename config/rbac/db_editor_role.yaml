@@ -5,7 +5,7 @@ metadata:
   name: db-editor-role
 rules:
 - apiGroups:
-  - db.qucheng.io
+  - qucheng.easycorp.io
   resources:
   - dbs
   verbs:
@@ -17,7 +17,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - db.qucheng.io
+  - qucheng.easycorp.io
   resources:
   - dbs/status
   verbs:

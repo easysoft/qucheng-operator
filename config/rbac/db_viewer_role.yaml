@@ -5,7 +5,7 @@ metadata:
   name: db-viewer-role
 rules:
 - apiGroups:
-  - db.qucheng.io
+  - qucheng.easycorp.io
   resources:
   - dbs
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - db.qucheng.io
+  - qucheng.easycorp.io
   resources:
   - dbs/status
   verbs:

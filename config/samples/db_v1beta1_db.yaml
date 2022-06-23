@@ -1,6 +1,0 @@
-apiVersion: db.qucheng.io/v1beta1
-kind: Db
-metadata:
-  name: db-sample
-spec:
-  # TODO(user): Add fields here

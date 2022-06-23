@@ -5,7 +5,7 @@ metadata:
   name: backup-editor-role
 rules:
 - apiGroups:
-  - op.qucheng.io
+  - qucheng.easycorp.io
   resources:
   - backups
   verbs:
@@ -17,7 +17,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - op.qucheng.io
+  - qucheng.easycorp.io
   resources:
   - backups/status
   verbs:

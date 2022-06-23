@@ -6,33 +6,7 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - db.qucheng.io
-  resources:
-  - dbservices
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - db.qucheng.io
-  resources:
-  - dbservices/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - db.qucheng.io
-  resources:
-  - dbservices/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - op.qucheng.io
+  - qucheng.easycorp.io
   resources:
   - backups
   verbs:
@@ -44,13 +18,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - op.qucheng.io
+  - qucheng.easycorp.io
   resources:
   - backups/finalizers
   verbs:
   - update
 - apiGroups:
-  - op.qucheng.io
+  - qucheng.easycorp.io
   resources:
   - backups/status
   verbs:

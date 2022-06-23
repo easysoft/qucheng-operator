@@ -5,7 +5,7 @@ metadata:
   name: backup-viewer-role
 rules:
 - apiGroups:
-  - op.qucheng.io
+  - qucheng.easycorp.io
   resources:
   - backups
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - op.qucheng.io
+  - qucheng.easycorp.io
   resources:
   - backups/status
   verbs:
