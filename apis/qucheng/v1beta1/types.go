@@ -36,7 +36,24 @@ type ValueSource struct {
 }
 
 type BackupPhase string
+type RestorePhase string
 
 const (
-	BackupPhaseNew BackupPhase = "New"
+	BackupPhaseNew           BackupPhase = "New"
+	BackupPhaseProcess       BackupPhase = "Processing"
+	BackupPhaseExecuteFailed BackupPhase = "ExecuteFailed"
+
+	BackupPhaseUploading     BackupPhase = "Uploading"
+	BackupPhaseUploadFailure BackupPhase = "UploadFailed"
+	BackupPhaseCompleted     BackupPhase = "Completed"
+)
+
+const (
+	RestorePhaseNew           RestorePhase = "New"
+	RestorePhaseProcess       RestorePhase = "Processing"
+	RestorePhaseExecuteFailed RestorePhase = "ExecuteFailed"
+
+	RestorePhaseDownloading     RestorePhase = "Downloading"
+	RestorePhaseDownloadFailure RestorePhase = "DownloadFailed"
+	RestorePhaseCompleted       RestorePhase = "Completed"
 )

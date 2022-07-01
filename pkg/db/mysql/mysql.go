@@ -4,21 +4,26 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	quchengv1beta1 "gitlab.zcorp.cc/pangu/cne-operator/apis/qucheng/v1beta1"
 	"gitlab.zcorp.cc/pangu/cne-operator/pkg/db"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strings"
 )
 
 type Parser struct {
 	c   client.Client
 	obj *quchengv1beta1.Db
+
+	logger *logrus.Entry
 }
 
-func NewParser(c client.Client, obj *quchengv1beta1.Db) db.InterFace {
+func NewParser(c client.Client, obj *quchengv1beta1.Db, logger *logrus.Entry) db.InterFace {
 	return &Parser{
 		c: c, obj: obj,
+		logger: logger,
 	}
 }
 
@@ -63,17 +68,24 @@ func (p *Parser) ParseAccessInfo() (*db.AccessInfo, error) {
 	data.Host = fmt.Sprintf("%s.%s.svc", svc.Name, svc.Namespace)
 	data.Port = port
 
-	user, err := getSourceValue(p.c, dbServiceKey.Namespace, dbService.Spec.Account.User.ValueFrom)
-	if err != nil {
-		return nil, err
+	if dbService.Spec.Account.User.Value != "" {
+		data.User = dbService.Spec.Account.User.Value
+	} else {
+		user, err := getSourceValue(p.c, dbServiceKey.Namespace, dbService.Spec.Account.User.ValueFrom)
+		if err != nil {
+			return nil, err
+		}
+		data.User = user
 	}
-	data.User = user
 
 	passwd, err := getSourceValue(p.c, dbServiceKey.Namespace, dbService.Spec.Account.Password.ValueFrom)
 	if err != nil {
 		return nil, err
 	}
 	data.Password = passwd
+	p.logger.Infof("parse accessinfo host %s, port %d, user %s, password %s",
+		data.Host, data.Port, data.User,
+		hiddenPassword(data.Password))
 	return &data, nil
 }
 
@@ -116,4 +128,10 @@ func getConfigMapRefValue(c client.Client, namespace string, configMapSelector *
 		return string(data), nil
 	}
 	return "", fmt.Errorf("key %s not found in config map %s", configMapSelector.Key, configMapSelector.Name)
+}
+
+func hiddenPassword(s string) string {
+	frames := strings.Split(s, "")
+	length := len(frames)
+	return fmt.Sprintf("%s%s%s", frames[0], strings.Repeat("*", length-2), frames[length-1])
 }

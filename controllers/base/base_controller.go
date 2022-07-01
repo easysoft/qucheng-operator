@@ -16,10 +16,11 @@ type GenericController struct {
 	SyncHandler func(key string) error
 }
 
-func NewGenericController(name string) *GenericController {
+func NewGenericController(name string, logger logrus.FieldLogger) *GenericController {
 	c := &GenericController{
-		name:  name,
-		Queue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), name),
+		name:   name,
+		Queue:  workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), name),
+		Logger: logger.WithField("controller", name),
 	}
 
 	return c
@@ -70,6 +71,7 @@ func (c *GenericController) processNextItem() bool {
 		return false
 	}
 
+	c.Logger.Infof("process for key %s", key)
 	defer c.Queue.Done(key)
 
 	err := c.SyncHandler(key.(string))

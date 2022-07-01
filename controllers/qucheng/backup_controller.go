@@ -18,83 +18,32 @@ package qucheng
 
 import (
 	"context"
-	"fmt"
-	"gitlab.zcorp.cc/pangu/cne-operator/controllers/base"
-	quchenginformers "gitlab.zcorp.cc/pangu/cne-operator/pkg/client/informers/externalversions/qucheng/v1beta1"
-	"gitlab.zcorp.cc/pangu/cne-operator/pkg/db/mysql"
-	"k8s.io/client-go/tools/cache"
-	"k8s.io/klog/v2"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	"k8s.io/apimachinery/pkg/runtime"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
-
+	"github.com/sirupsen/logrus"
 	quchengv1beta1 "gitlab.zcorp.cc/pangu/cne-operator/apis/qucheng/v1beta1"
+	"gitlab.zcorp.cc/pangu/cne-operator/controllers/base"
+	clientset "gitlab.zcorp.cc/pangu/cne-operator/pkg/client/clientset/versioned"
+	quchenginformers "gitlab.zcorp.cc/pangu/cne-operator/pkg/client/informers/externalversions/qucheng/v1beta1"
+	quchenglister "gitlab.zcorp.cc/pangu/cne-operator/pkg/client/listers/qucheng/v1beta1"
+	"gitlab.zcorp.cc/pangu/cne-operator/pkg/db/mysql"
+	"gitlab.zcorp.cc/pangu/cne-operator/pkg/storage"
+	"k8s.io/client-go/tools/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-// BackupReconciler reconciles a Backup object
-type BackupReconciler struct {
-	client.Client
-	Scheme *runtime.Scheme
-}
-
-//+kubebuilder:rbac:groups=qucheng.easycorp.io,resources=backups,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=qucheng.easycorp.io,resources=backups/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=qucheng.easycorp.io,resources=backups/finalizers,verbs=update
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Backup object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
-func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
-
-	instance := &quchengv1beta1.Backup{}
-	objKey := client.ObjectKey{Namespace: req.Namespace, Name: req.Name}
-	err := r.Get(ctx, objKey, instance)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	dbs, err := r.filterDbList(instance.Namespace, instance.Spec.Selector)
-
-	for _, o := range dbs.Items {
-		p := mysql.NewParser(r.Client, &o)
-		klog.Infoln(p.ParseAccessInfo())
-	}
-	return ctrl.Result{}, nil
-}
-
-// SetupWithManager sets up the controller with the Manager.
-func (r *BackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&quchengv1beta1.Backup{}).
-		Complete(r)
-}
-
-func (r *BackupReconciler) filterDbList(namespace string, selector client.MatchingLabels) (*quchengv1beta1.DbList, error) {
-	list := quchengv1beta1.DbList{}
-
-	ns := client.InNamespace(namespace)
-	err := r.List(context.TODO(), &list, ns, selector)
-	return &list, err
-}
 
 type BackupController struct {
 	*base.GenericController
 	informer quchenginformers.BackupInformer
+	lister   quchenglister.BackupLister
+	clients  *clientset.Clientset
+	kbClient client.Client
 }
 
-func NewBackupController(informer quchenginformers.BackupInformer) base.Controller {
+func NewBackupController(informer quchenginformers.BackupInformer, kbClient client.Client, clientset *clientset.Clientset, logger logrus.FieldLogger) base.Controller {
 	c := &BackupController{
-		GenericController: base.NewGenericController(backupControllerName),
+		GenericController: base.NewGenericController(backupControllerName, logger),
+		lister:            informer.Lister(),
+		kbClient:          kbClient,
+		clients:           clientset,
 	}
 
 	informer.Informer().AddEventHandler(
@@ -102,25 +51,27 @@ func NewBackupController(informer quchenginformers.BackupInformer) base.Controll
 			AddFunc: func(obj interface{}) {
 				backup := obj.(*quchengv1beta1.Backup)
 
+				log := c.Logger.WithFields(logrus.Fields{
+					"name": backup.Name, "namespace": backup.Namespace,
+				})
+
 				switch backup.Status.Phase {
 				case "", quchengv1beta1.BackupPhaseNew:
 					// only process new backups
 				default:
-					fmt.Println("Backup is not new, skipping")
-					//c.logger.WithFields(logrus.Fields{
-					//	"backup": kubeutil.NamespaceAndName(backup),
-					//	"phase":  backup.Status.Phase,
-					//}).Debug("Backup is not new, skipping")
+					log.WithFields(logrus.Fields{
+						"phase": backup.Status.Phase,
+					}).Debug("request is not new, skip")
 					return
 				}
 
 				key, err := cache.MetaNamespaceKeyFunc(backup)
 				if err != nil {
-					fmt.Println("Error creating queue key, item not added to queue")
+					log.Error("Error creating queue key, item not added to queue")
 					return
 				}
 				c.Queue.Add(key)
-				fmt.Println("added", key)
+				log.Infof("task key %s added to queue", key)
 			},
 		},
 	)
@@ -130,10 +81,110 @@ func NewBackupController(informer quchenginformers.BackupInformer) base.Controll
 }
 
 func (c *BackupController) process(key string) error {
+	var err error
+
 	ns, name, err := cache.SplitMetaNamespaceKey(key)
+
 	if err != nil {
+		c.Logger.WithError(err).WithField("key", key).Error("split key failed")
 		return err
 	}
-	fmt.Println(ns, name)
-	return nil
+
+	log := c.Logger.WithFields(logrus.Fields{"name": name, "namespace": ns})
+
+	origin, err := c.lister.Backups(ns).Get(name)
+	if err != nil {
+		log.WithError(err).Error("get backup field")
+		return err
+	}
+
+	if origin.Status.Phase != "" && origin.Status.Phase != quchengv1beta1.BackupPhaseNew {
+		log.Infoln("backup is not new, skip")
+		return nil
+	}
+
+	request := origin.DeepCopy()
+	request.Status.Phase = quchengv1beta1.BackupPhaseProcess
+	if err = c.kbClient.Status().Update(context.TODO(), request); err != nil {
+		log.WithError(err).Error("update status failed")
+		return err
+	}
+	log.WithField("phase", request.Status.Phase).Infoln("updated status")
+
+	log.Infoln("find backup resources")
+	dbs, err := c.filterDbList(origin.Namespace, origin.Spec.Selector)
+	if err != nil {
+		log.WithError(err).Errorf("search backup dbs failed, with selector %v", origin.Spec.Selector)
+		return err
+	}
+
+	log.Infof("find %d dbs to backup", len(dbs.Items))
+
+	archives := make([]quchengv1beta1.Archive, 0)
+
+	for _, db := range dbs.Items {
+		logdb := log.WithFields(logrus.Fields{
+			"dbname": db.Spec.DbName,
+		})
+		p := mysql.NewParser(c.kbClient, &db, logdb)
+		access, err := p.ParseAccessInfo()
+		if err != nil {
+			logdb.WithError(err).Error("parse db access info failed")
+			return err
+		}
+
+		backupReq := mysql.NewBackupRequest(access, db.Spec.DbName)
+		err = backupReq.Run()
+		if err != nil {
+			logdb.WithError(err).Error("execute mysql backup failed")
+			request.Status.Phase = quchengv1beta1.BackupPhaseExecuteFailed
+			request.Status.Reason = backupReq.Errors()
+			_ = c.kbClient.Status().Update(context.TODO(), request)
+			logdb.WithFields(logrus.Fields{
+				"phase": request.Status.Phase, "reason": request.Status.Reason,
+			}).Info("update status to failed")
+			return err
+		}
+
+		backupInfo := storage.BackupInfo{
+			BackupTime: backupReq.BackupTime, Name: name, Namespace: ns,
+			File: backupReq.BackupFile.FullPath, FileFd: backupReq.BackupFile.Fd,
+		}
+		logdb.Infof("temporary backup file path %s", backupReq.BackupFile.FullPath)
+
+		store := storage.NewFileStorage()
+		err = store.PutBackup(backupInfo)
+		if err != nil {
+			logdb.WithError(err).Error("put backup file to persistent storage failed")
+			request.Status.Phase = quchengv1beta1.BackupPhaseUploadFailure
+			request.Status.Reason = backupReq.Errors()
+			_ = c.kbClient.Status().Update(context.TODO(), request)
+			logdb.WithFields(logrus.Fields{
+				"phase": request.Status.Phase, "reason": request.Status.Reason,
+			}).Info("update status to failed")
+			return err
+		}
+
+		archive := quchengv1beta1.Archive{
+			Path:  store.GetAbsPath(),
+			DbRef: &quchengv1beta1.DbRef{Name: db.Name},
+		}
+		logdb.Infof("archive successful, storage path %s", store.GetAbsPath())
+		archives = append(archives, archive)
+	}
+
+	request.Status.Archives = archives
+	request.Status.Phase = quchengv1beta1.BackupPhaseCompleted
+	log.WithFields(logrus.Fields{
+		"phase": request.Status.Phase,
+	}).Info("update status to completed")
+	return c.kbClient.Status().Update(context.TODO(), request)
+}
+
+func (c *BackupController) filterDbList(namespace string, selector client.MatchingLabels) (*quchengv1beta1.DbList, error) {
+	list := quchengv1beta1.DbList{}
+
+	ns := client.InNamespace(namespace)
+	err := c.kbClient.List(context.TODO(), &list, ns, selector)
+	return &list, err
 }

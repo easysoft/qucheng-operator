@@ -3,4 +3,5 @@ resources:
 - qucheng_v1beta1_dbservice.yaml
 - qucheng_v1beta1_db.yaml
 - qucheng_v1beta1_backup.yaml
+- qucheng_v1beta1_restore.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

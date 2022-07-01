@@ -39,6 +39,10 @@ func (c *FakeQuchengV1beta1) DbServices(namespace string) v1beta1.DbServiceInter
 	return &FakeDbServices{c, namespace}
 }
 
+func (c *FakeQuchengV1beta1) Restores(namespace string) v1beta1.RestoreInterface {
+	return &FakeRestores{c, namespace}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeQuchengV1beta1) RESTClient() rest.Interface {

@@ -29,6 +29,8 @@ type Interface interface {
 	Dbs() DbInformer
 	// DbServices returns a DbServiceInformer.
 	DbServices() DbServiceInformer
+	// Restores returns a RestoreInformer.
+	Restores() RestoreInformer
 }
 
 type version struct {
@@ -55,4 +57,9 @@ func (v *version) Dbs() DbInformer {
 // DbServices returns a DbServiceInformer.
 func (v *version) DbServices() DbServiceInformer {
 	return &dbServiceInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// Restores returns a RestoreInformer.
+func (v *version) Restores() RestoreInformer {
+	return &restoreInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

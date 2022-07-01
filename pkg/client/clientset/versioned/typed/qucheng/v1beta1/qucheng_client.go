@@ -30,6 +30,7 @@ type QuchengV1beta1Interface interface {
 	BackupsGetter
 	DbsGetter
 	DbServicesGetter
+	RestoresGetter
 }
 
 // QuchengV1beta1Client is used to interact with features provided by the qucheng group.
@@ -47,6 +48,10 @@ func (c *QuchengV1beta1Client) Dbs(namespace string) DbInterface {
 
 func (c *QuchengV1beta1Client) DbServices(namespace string) DbServiceInterface {
 	return newDbServices(c, namespace)
+}
+
+func (c *QuchengV1beta1Client) Restores(namespace string) RestoreInterface {
+	return newRestores(c, namespace)
 }
 
 // NewForConfig creates a new QuchengV1beta1Client for the given config.

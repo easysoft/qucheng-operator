@@ -1,5 +1,6 @@
 package qucheng
 
 const (
-	backupControllerName = "backup"
+	backupControllerName  = "backup"
+	restoreControllerName = "restore"
 )

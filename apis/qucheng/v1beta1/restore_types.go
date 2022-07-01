@@ -23,53 +23,44 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// BackupSpec defines the desired state of Backup
-type BackupSpec struct {
-	Selector    map[string]string `json:"selector"`
-	StorageName string            `json:"storageName,omitempty"`
+// RestoreSpec defines the desired state of Restore
+type RestoreSpec struct {
+	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
+	// Important: Run "make" to regenerate code after modifying this file
+
+	BackupName string `json:"backupName"`
 }
 
-// BackupStatus defines the observed state of Backup
-type BackupStatus struct {
+// RestoreStatus defines the observed state of Restore
+type RestoreStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	Phase    BackupPhase `json:"phase"`
-	Reason   string      `json:"reason,omitempty"`
-	Archives []Archive   `json:"archives,omitempty"`
-}
-
-type Archive struct {
-	Path  string `json:"path"`
-	DbRef *DbRef `json:"dbRef"`
-}
-
-type DbRef struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace,omitempty"`
+	Phase  RestorePhase `json:"phase"`
+	Reason string       `json:"reason,omitempty"`
 }
 
 //+genclient
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// Backup is the Schema for the backups API
-type Backup struct {
+// Restore is the Schema for the restores API
+type Restore struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   BackupSpec   `json:"spec,omitempty"`
-	Status BackupStatus `json:"status,omitempty"`
+	Spec   RestoreSpec   `json:"spec,omitempty"`
+	Status RestoreStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// BackupList contains a list of Backup
-type BackupList struct {
+// RestoreList contains a list of Restore
+type RestoreList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Backup `json:"items"`
+	Items           []Restore `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&Backup{}, &BackupList{})
+	SchemeBuilder.Register(&Restore{}, &RestoreList{})
 }
