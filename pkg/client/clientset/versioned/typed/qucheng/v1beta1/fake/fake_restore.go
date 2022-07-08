@@ -116,7 +116,7 @@ func (c *FakeRestores) UpdateStatus(ctx context.Context, restore *v1beta1.Restor
 // Delete takes name of the restore and deletes it. Returns an error if one occurs.
 func (c *FakeRestores) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(restoresResource, c.ns, name, opts), &v1beta1.Restore{})
+		Invokes(testing.NewDeleteAction(restoresResource, c.ns, name), &v1beta1.Restore{})
 
 	return err
 }

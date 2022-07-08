@@ -116,7 +116,7 @@ func (c *FakeDbs) UpdateStatus(ctx context.Context, db *v1beta1.Db, opts v1.Upda
 // Delete takes name of the db and deletes it. Returns an error if one occurs.
 func (c *FakeDbs) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(dbsResource, c.ns, name, opts), &v1beta1.Db{})
+		Invokes(testing.NewDeleteAction(dbsResource, c.ns, name), &v1beta1.Db{})
 
 	return err
 }
