@@ -3,10 +3,11 @@ package mysql
 import (
 	"bytes"
 	"fmt"
-	"gitlab.zcorp.cc/pangu/cne-operator/pkg/db"
 	"io/ioutil"
 	"os"
 	"os/exec"
+
+	"gitlab.zcorp.cc/pangu/cne-operator/pkg/db"
 )
 
 type RestoreAction struct {

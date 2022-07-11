@@ -18,6 +18,7 @@ package qucheng
 
 import (
 	"context"
+
 	"github.com/sirupsen/logrus"
 	quchengv1beta1 "gitlab.zcorp.cc/pangu/cne-operator/apis/qucheng/v1beta1"
 	"gitlab.zcorp.cc/pangu/cne-operator/controllers/base"
@@ -34,11 +35,11 @@ type BackupController struct {
 	*base.GenericController
 	informer quchenginformers.BackupInformer
 	lister   quchenglister.BackupLister
-	clients  *clientset.Clientset
+	clients  clientset.Interface
 	kbClient client.Client
 }
 
-func NewBackupController(informer quchenginformers.BackupInformer, kbClient client.Client, clientset *clientset.Clientset, logger logrus.FieldLogger) base.Controller {
+func NewBackupController(informer quchenginformers.BackupInformer, kbClient client.Client, clientset clientset.Interface, logger logrus.FieldLogger) base.Controller {
 	c := &BackupController{
 		GenericController: base.NewGenericController(backupControllerName, logger),
 		lister:            informer.Lister(),

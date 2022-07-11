@@ -18,6 +18,7 @@ package qucheng
 
 import (
 	"context"
+
 	"github.com/sirupsen/logrus"
 	quchengv1beta1 "gitlab.zcorp.cc/pangu/cne-operator/apis/qucheng/v1beta1"
 	"gitlab.zcorp.cc/pangu/cne-operator/controllers/base"
@@ -71,13 +72,13 @@ type RestoreController struct {
 	*base.GenericController
 	informer quchenginformers.RestoreInformer
 	lister   quchenglister.RestoreLister
-	clients  *clientset.Clientset
+	clients  clientset.Interface
 	kbClient client.Client
 
 	logger logrus.FieldLogger
 }
 
-func NewRestoreController(informer quchenginformers.RestoreInformer, kbClient client.Client, clientset *clientset.Clientset, logger logrus.FieldLogger) base.Controller {
+func NewRestoreController(informer quchenginformers.RestoreInformer, kbClient client.Client, clientset clientset.Interface, logger logrus.FieldLogger) base.Controller {
 	c := &RestoreController{
 		GenericController: base.NewGenericController(restoreControllerName, logger),
 		lister:            informer.Lister(),

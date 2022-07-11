@@ -24,6 +24,8 @@ testbin/*
 *.swo
 *~
 
+cover.out
+
 bin/
 test/
 vendor/
