@@ -20,6 +20,7 @@ import (
 	"github.com/vmware-tanzu/velero/pkg/util/filesystem"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	quchengv1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
@@ -71,7 +72,7 @@ func main() {
 	flag.StringVar(&pprofAddr, "pprof-addr", ":8090", "The address the pprof binds to.")
 	flag.StringVar(&syncPeriodStr, "sync-period", "", "Determines the minimum frequency at which watched resources are reconciled.")
 
-	s, err := newServer()
+	s, err := newServer(leaderElectionNamespace)
 	if err != nil {
 		s.cancelFunc()
 		panic(err)
@@ -128,8 +129,7 @@ type server struct {
 	resticManager       restic.RepositoryManager
 }
 
-func newServer() (*server, error) {
-	namespace := "cne-system"
+func newServer(namespace string) (*server, error) {
 
 	logger := logrus.New()
 	logger.SetOutput(os.Stdout)
@@ -175,11 +175,20 @@ func newServer() (*server, error) {
 		HealthProbeBindAddress:  probeAddr,
 		LeaderElection:          enableLeaderElection,
 		LeaderElectionID:        "8041c7a8.easycorp.io",
-		LeaderElectionNamespace: leaderElectionNamespace,
+		LeaderElectionNamespace: namespace,
 		SyncPeriod:              syncPeriod,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
+		return nil, err
+	}
+
+	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+		setupLog.Error(err, "unable to set up health check")
+		return nil, err
+	}
+	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+		setupLog.Error(err, "unable to set up ready check")
 		return nil, err
 	}
 

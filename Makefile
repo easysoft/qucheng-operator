@@ -1,4 +1,8 @@
+KUBECFG ?= ~/.kube/config
 VERSION ?= 0.0.1
+BUILD_DATE      = $(shell date "+%Y%m%d")
+COMMIT_SHA1     ?= $(shell git rev-parse --short HEAD || echo "unknown")
+IMG_VERSION ?= ${VERSION}-${BUILD_DATE}-${COMMIT_SHA1}
 
 # Image URL to use all building/pushing image targets
 IMG ?= hub.qucheng.com/platform/cne-operator
@@ -85,7 +89,9 @@ run: manifests generate fmt vet ## Run a controller from your host.
 
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}:${IMG_VERSION}
 	docker build -t ${IMG} .
+	docker build -t ${IMG}:${IMG_VERSION} .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
@@ -102,20 +108,28 @@ endif
 
 .PHONY: install
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+	$(KUSTOMIZE) build config/crd | kubectl apply  --kubeconfig ${KUBECFG} -f -
 
 .PHONY: uninstall
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
+	$(KUSTOMIZE) build config/crd | kubectl delete  --kubeconfig ${KUBECFG} --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
+	$(KUSTOMIZE) build config/default | kubectl apply  --kubeconfig ${KUBECFG} -f -
 
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
+	$(KUSTOMIZE) build config/default | kubectl delete  --kubeconfig ${KUBECFG} --ignore-not-found=$(ignore-not-found) -f -
+
+.PHONY: genclient
+genclient: ## Gen Client Code
+	hack/genclient.sh
+
+.PHONY: local
+local: docker-build ## Run local manager.
+	$(KUSTOMIZE) build config/default > hack/deploy/deploy.yaml
 
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin
