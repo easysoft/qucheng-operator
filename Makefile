@@ -128,8 +128,12 @@ genclient: ## Gen Client Code
 	hack/genclient.sh
 
 .PHONY: local
-local: docker-build ## Run local manager.
+local: manifests kustomize docker ## Run local manager.
 	$(KUSTOMIZE) build config/default > hack/deploy/deploy.yaml
+
+.PHONY: local-k8s
+local-k8s: ## setup kind k8s
+	hack/kind/setup.sh
 
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin

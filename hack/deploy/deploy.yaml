@@ -395,12 +395,30 @@ spec:
           spec:
             description: GlobalDBSpec defines the desired state of GlobalDB
             properties:
-              foo:
-                description: Foo is an example field of GlobalDB. Edit globaldb_types.go to remove/update
+              name:
+                description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster Important: Run "make" to regenerate code after modifying this file'
                 type: string
+              source:
+                type: string
+              type:
+                type: string
+            required:
+            - name
+            - source
+            - type
             type: object
           status:
             description: GlobalDBStatus defines the observed state of GlobalDB
+            properties:
+              childDB:
+                format: int64
+                type: integer
+              ready:
+                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state of cluster Important: Run "make" to regenerate code after modifying this file'
+                type: boolean
+            required:
+            - childDB
+            - ready
             type: object
         type: object
     served: true
@@ -501,7 +519,7 @@ spec:
         control-plane: controller-manager
     spec:
       containers:
-      - image: hub.qucheng.com/platform/cne-operator:0.0.1-20220711-5354e20
+      - image: hub.qucheng.com/platform/cne-operator:0.0.1-20220711-6a9cc99
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:

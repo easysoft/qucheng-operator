@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	quchengv1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
+	customcontrollers "github.com/easysoft/qucheng-operator/controllers"
 	"github.com/easysoft/qucheng-operator/controllers/base"
 	"github.com/easysoft/qucheng-operator/controllers/qucheng"
 	clientset "github.com/easysoft/qucheng-operator/pkg/client/clientset/versioned"
@@ -78,7 +79,7 @@ func main() {
 		panic(err)
 	}
 
-	resticRepoRec := veleroctrls.NewResticRepoReconciler("cne-system", s.logger, s.mgr.GetClient(), restic.DefaultMaintenanceFrequency, s.resticManager)
+	resticRepoRec := veleroctrls.NewResticRepoReconciler(leaderElectionNamespace, s.logger, s.mgr.GetClient(), restic.DefaultMaintenanceFrequency, s.resticManager)
 	if err = resticRepoRec.SetupWithManager(s.mgr); err != nil {
 		panic(err)
 	}
@@ -102,6 +103,15 @@ func main() {
 			}
 		}(name, controller)
 	}
+
+	// custom controller
+	go func() {
+		s.logger.Info("setup customcontrollers")
+		if err = customcontrollers.SetupWithManager(s.mgr); err != nil {
+			s.logger.Error(err, "unable to setup customcontrollers")
+			os.Exit(1)
+		}
+	}()
 
 	s.logger.Infoln("start mgr")
 	err = s.mgr.Start(s.ctx)

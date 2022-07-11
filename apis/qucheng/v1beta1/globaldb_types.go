@@ -17,15 +17,17 @@ import (
 type GlobalDBSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of GlobalDB. Edit globaldb_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	Name   string `json:"name"`
+	Source string `json:"source"`
+	Type   DbType `json:"type"`
 }
 
 // GlobalDBStatus defines the observed state of GlobalDB
 type GlobalDBStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+	Ready   bool  `json:"ready"`
+	ChildDB int64 `json:"childDB"`
 }
 
 //+genclient
