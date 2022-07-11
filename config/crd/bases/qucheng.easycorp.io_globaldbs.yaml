@@ -5,20 +5,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.0
   creationTimestamp: null
-  name: restores.qucheng.easycorp.io
+  name: globaldbs.qucheng.easycorp.io
 spec:
   group: qucheng.easycorp.io
   names:
-    kind: Restore
-    listKind: RestoreList
-    plural: restores
-    singular: restore
+    kind: GlobalDB
+    listKind: GlobalDBList
+    plural: globaldbs
+    singular: globaldb
   scope: Namespaced
   versions:
   - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: Restore is the Schema for the restores API
+        description: GlobalDB is the Schema for the globaldbs API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -33,25 +33,15 @@ spec:
           metadata:
             type: object
           spec:
-            description: RestoreSpec defines the desired state of Restore
+            description: GlobalDBSpec defines the desired state of GlobalDB
             properties:
-              backupName:
+              foo:
+                description: Foo is an example field of GlobalDB. Edit globaldb_types.go
+                  to remove/update
                 type: string
-            required:
-            - backupName
             type: object
           status:
-            description: RestoreStatus defines the observed state of Restore
-            properties:
-              phase:
-                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
-                  of cluster Important: Run "make" to regenerate code after modifying
-                  this file'
-                type: string
-              reason:
-                type: string
-            required:
-            - phase
+            description: GlobalDBStatus defines the observed state of GlobalDB
             type: object
         type: object
     served: true

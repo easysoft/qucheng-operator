@@ -21,3 +21,4 @@ rm -rf ./pkg/client/{clientset,informers,listers}
 tree "${TMP_DIR}"/src/github.com/easysoft/qucheng-operator/pkg/client/
 mv "${TMP_DIR}"/src/github.com/easysoft/qucheng-operator/pkg/client/* ./pkg/client/
 rm -rf ${TMP_DIR}
+rm -rf vendor
