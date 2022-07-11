@@ -18,7 +18,7 @@ limitations under the License.
 package fake
 
 import (
-	v1beta1 "gitlab.zcorp.cc/pangu/cne-operator/pkg/client/clientset/versioned/typed/qucheng/v1beta1"
+	v1beta1 "github.com/easysoft/qucheng-operator/pkg/client/clientset/versioned/typed/qucheng/v1beta1"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )

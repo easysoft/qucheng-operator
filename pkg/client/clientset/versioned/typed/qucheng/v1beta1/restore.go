@@ -21,8 +21,8 @@ import (
 	"context"
 	"time"
 
-	v1beta1 "gitlab.zcorp.cc/pangu/cne-operator/apis/qucheng/v1beta1"
-	scheme "gitlab.zcorp.cc/pangu/cne-operator/pkg/client/clientset/versioned/scheme"
+	v1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
+	scheme "github.com/easysoft/qucheng-operator/pkg/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"

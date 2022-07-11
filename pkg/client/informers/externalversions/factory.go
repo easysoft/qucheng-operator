@@ -22,9 +22,9 @@ import (
 	sync "sync"
 	time "time"
 
-	versioned "gitlab.zcorp.cc/pangu/cne-operator/pkg/client/clientset/versioned"
-	internalinterfaces "gitlab.zcorp.cc/pangu/cne-operator/pkg/client/informers/externalversions/internalinterfaces"
-	qucheng "gitlab.zcorp.cc/pangu/cne-operator/pkg/client/informers/externalversions/qucheng"
+	versioned "github.com/easysoft/qucheng-operator/pkg/client/clientset/versioned"
+	internalinterfaces "github.com/easysoft/qucheng-operator/pkg/client/informers/externalversions/internalinterfaces"
+	qucheng "github.com/easysoft/qucheng-operator/pkg/client/informers/externalversions/qucheng"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

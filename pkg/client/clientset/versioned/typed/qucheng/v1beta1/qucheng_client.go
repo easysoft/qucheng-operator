@@ -18,8 +18,8 @@ limitations under the License.
 package v1beta1
 
 import (
-	v1beta1 "gitlab.zcorp.cc/pangu/cne-operator/apis/qucheng/v1beta1"
-	"gitlab.zcorp.cc/pangu/cne-operator/pkg/client/clientset/versioned/scheme"
+	v1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
+	"github.com/easysoft/qucheng-operator/pkg/client/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 
