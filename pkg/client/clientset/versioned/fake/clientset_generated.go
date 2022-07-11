@@ -18,9 +18,9 @@ limitations under the License.
 package fake
 
 import (
-	clientset "gitlab.zcorp.cc/pangu/cne-operator/pkg/client/clientset/versioned"
-	quchengv1beta1 "gitlab.zcorp.cc/pangu/cne-operator/pkg/client/clientset/versioned/typed/qucheng/v1beta1"
-	fakequchengv1beta1 "gitlab.zcorp.cc/pangu/cne-operator/pkg/client/clientset/versioned/typed/qucheng/v1beta1/fake"
+	clientset "github.com/easysoft/qucheng-operator/pkg/client/clientset/versioned"
+	quchengv1beta1 "github.com/easysoft/qucheng-operator/pkg/client/clientset/versioned/typed/qucheng/v1beta1"
+	fakequchengv1beta1 "github.com/easysoft/qucheng-operator/pkg/client/clientset/versioned/typed/qucheng/v1beta1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

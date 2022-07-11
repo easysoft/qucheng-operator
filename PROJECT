@@ -6,7 +6,7 @@ plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
 projectName: cne-operator
-repo: gitlab.zcorp.cc/pangu/cne-operator
+repo: github.com/easysoft/qucheng-operator
 resources:
 - api:
     crdVersion: v1
@@ -14,7 +14,7 @@ resources:
   domain: easycorp.io
   group: qucheng
   kind: DbService
-  path: gitlab.zcorp.cc/pangu/cne-operator/apis/qucheng/v1beta1
+  path: github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1
   version: v1beta1
 - api:
     crdVersion: v1
@@ -22,7 +22,7 @@ resources:
   domain: easycorp.io
   group: qucheng
   kind: Db
-  path: gitlab.zcorp.cc/pangu/cne-operator/apis/qucheng/v1beta1
+  path: github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1
   version: v1beta1
 - api:
     crdVersion: v1
@@ -31,7 +31,7 @@ resources:
   domain: easycorp.io
   group: qucheng
   kind: Backup
-  path: gitlab.zcorp.cc/pangu/cne-operator/apis/qucheng/v1beta1
+  path: github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1
   version: v1beta1
 - api:
     crdVersion: v1
@@ -40,6 +40,6 @@ resources:
   domain: easycorp.io
   group: qucheng
   kind: Restore
-  path: gitlab.zcorp.cc/pangu/cne-operator/apis/qucheng/v1beta1
+  path: github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1
   version: v1beta1
 version: "3"

@@ -20,7 +20,7 @@ package versioned
 import (
 	"fmt"
 
-	quchengv1beta1 "gitlab.zcorp.cc/pangu/cne-operator/pkg/client/clientset/versioned/typed/qucheng/v1beta1"
+	quchengv1beta1 "github.com/easysoft/qucheng-operator/pkg/client/clientset/versioned/typed/qucheng/v1beta1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

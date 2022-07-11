@@ -18,8 +18,8 @@ limitations under the License.
 package qucheng
 
 import (
-	internalinterfaces "gitlab.zcorp.cc/pangu/cne-operator/pkg/client/informers/externalversions/internalinterfaces"
-	v1beta1 "gitlab.zcorp.cc/pangu/cne-operator/pkg/client/informers/externalversions/qucheng/v1beta1"
+	internalinterfaces "github.com/easysoft/qucheng-operator/pkg/client/informers/externalversions/internalinterfaces"
+	v1beta1 "github.com/easysoft/qucheng-operator/pkg/client/informers/externalversions/qucheng/v1beta1"
 )
 
 // Interface provides access to each of this group's versions.

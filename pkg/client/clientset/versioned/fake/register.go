@@ -18,7 +18,7 @@ limitations under the License.
 package fake
 
 import (
-	quchengv1beta1 "gitlab.zcorp.cc/pangu/cne-operator/apis/qucheng/v1beta1"
+	quchengv1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

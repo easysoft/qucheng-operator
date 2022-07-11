@@ -96,11 +96,23 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
-	go fmt ./...
+	gofmt -s -w .
+	goimports -w .
 
 .PHONY: vet
 vet: ## Run go vet against code.
 	go vet ./...
+
+.PHONY: lint
+lint: ## Run go lint against code.
+	golangci-lint run --skip-files ".*test.go"  -v ./...
+
+.PHONY: gencopyright
+gencopyright: ## add code copyright
+	@bash hack/gencopyright.sh
+
+.PHONY: default
+default: gencopyright fmt vet lint ## Run all code ci by default: gencopyright fmt vet lint.
 
 .PHONY: test
 test: manifests generate fmt vet envtest ## Run tests.
@@ -110,11 +122,11 @@ test: manifests generate fmt vet envtest ## Run tests.
 
 .PHONY: build
 build: generate fmt vet ## Build manager binary.
-	go build -o bin/manager main.go
+	go build -o bin/manager cmd/main.go
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./main.go
+	go run ./cmd/main.go
 
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
@@ -123,6 +135,9 @@ docker-build: ## Build docker image with the manager.
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
 	docker push ${IMG}
+
+.PHONY: docker
+docker: docker-build docker-push ## docker build & push
 
 ##@ Deployment
 
@@ -171,7 +186,7 @@ TMP_DIR=$$(mktemp -d) ;\
 cd $$TMP_DIR ;\
 go mod init tmp ;\
 echo "Downloading $(2)" ;\
-GOBIN=$(PROJECT_DIR)/bin go get $(2) ;\
+GOBIN=$(PROJECT_DIR)/bin go install $(2) ;\
 rm -rf $$TMP_DIR ;\
 }
 endef

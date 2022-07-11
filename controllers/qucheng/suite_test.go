@@ -1,18 +1,8 @@
-/*
-Copyright 2022.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// Copyright (c) 2022-2022 北京渠成软件有限公司(Beijing Qucheng Software Co., Ltd. www.qucheng.com) All rights reserved.
+// Use of this source code is covered by the following dual licenses:
+// (1) Z PUBLIC LICENSE 1.2 (ZPL 1.2)
+// (2) Affero General Public License 3.0 (AGPL 3.0)
+// license that can be found in the LICENSE file.
 
 package qucheng
 
@@ -30,7 +20,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	quchengv1beta1 "gitlab.zcorp.cc/pangu/cne-operator/apis/qucheng/v1beta1"
+	quchengv1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
 	//+kubebuilder:scaffold:imports
 )
 

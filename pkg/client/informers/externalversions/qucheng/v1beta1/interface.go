@@ -18,7 +18,7 @@ limitations under the License.
 package v1beta1
 
 import (
-	internalinterfaces "gitlab.zcorp.cc/pangu/cne-operator/pkg/client/informers/externalversions/internalinterfaces"
+	internalinterfaces "github.com/easysoft/qucheng-operator/pkg/client/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to all the informers in this group version.

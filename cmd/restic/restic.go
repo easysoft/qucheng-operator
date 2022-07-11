@@ -4,10 +4,15 @@
 // (2) Affero General Public License 3.0 (AGPL 3.0)
 // license that can be found in the LICENSE file.
 
-package base
+package main
 
-import "context"
+import (
+	"fmt"
 
-type Controller interface {
-	Run(ctx context.Context, workers int) error
+	velerov1api "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
+)
+
+func main() {
+	v := velerov1api.PodVolumeBackupStatus{}
+	fmt.Println(v)
 }
