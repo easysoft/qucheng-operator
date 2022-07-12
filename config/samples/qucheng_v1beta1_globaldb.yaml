@@ -3,4 +3,11 @@ kind: GlobalDB
 metadata:
   name: globaldb-sample
 spec:
-  # TODO(user): Add fields here
+  name: globaldb-sample
+  type: mysql
+  source:
+    mysql: 
+      host: 127.0.0.1
+      port: 3306
+      user: root
+      password: root

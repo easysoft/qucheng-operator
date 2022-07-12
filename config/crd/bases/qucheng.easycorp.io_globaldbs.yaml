@@ -40,7 +40,24 @@ spec:
                   Important: Run "make" to regenerate code after modifying this file'
                 type: string
               source:
-                type: string
+                properties:
+                  mysql:
+                    properties:
+                      host:
+                        type: string
+                      pass:
+                        type: string
+                      port:
+                        type: integer
+                      user:
+                        type: string
+                    required:
+                    - host
+                    - pass
+                    type: object
+                required:
+                - mysql
+                type: object
               type:
                 type: string
             required:

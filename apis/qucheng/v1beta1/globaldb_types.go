@@ -17,9 +17,20 @@ import (
 type GlobalDBSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	Name   string `json:"name"`
-	Source string `json:"source"`
-	Type   DbType `json:"type"`
+	Name   string   `json:"name" yaml:"name"`
+	Source DBSource `json:"source" yaml:"source"`
+	Type   DbType   `json:"type" yaml:"type"`
+}
+
+type DBSource struct {
+	Mysql MysqlSource `json:"mysql" yaml:"mysql"`
+}
+
+type MysqlSource struct {
+	Host string `json:"host" yaml:"host"`
+	Port int    `json:"port,omitempty" yaml:"port,omitempty"`
+	User string `json:"user,omitempty" yaml:"user,omitempty"`
+	Pass string `json:"pass" yaml:"pass"`
 }
 
 // GlobalDBStatus defines the observed state of GlobalDB
