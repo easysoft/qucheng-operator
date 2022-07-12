@@ -130,6 +130,9 @@ genclient: ## Gen Client Code
 local: manifests kustomize docker ## Run local manager.
 	$(KUSTOMIZE) build config/default > hack/deploy/deploy.yaml
 
+local-crd: manifests kustomize ## gen crd
+	$(KUSTOMIZE) build config/crd > hack/deploy/crd.yaml
+
 .PHONY: local-k8s
 local-k8s: ## setup kind k8s
 	hack/kind/setup.sh

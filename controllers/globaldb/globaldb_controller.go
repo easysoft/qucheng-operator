@@ -8,7 +8,10 @@ package globaldb
 
 import (
 	"context"
+	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -20,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	quchengv1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
+	"github.com/easysoft/qucheng-operator/controllers/globaldb/util"
 	"github.com/sirupsen/logrus"
 )
 
@@ -83,6 +87,23 @@ type GlobalDBReconciler struct {
 func (r *GlobalDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	// TODO(user): your logic here
 	r.Logger.Info("start reconcile for gdb")
+	// fetch gdb
+	gdb := &quchengv1beta1.GlobalDB{}
+	err := r.Get(ctx, req.NamespacedName, gdb)
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			return reconcile.Result{}, fmt.Errorf("failed to get gdb %s: %v", req.NamespacedName.Name, err)
+		}
+		gdb = nil
+	}
+	if gdb == nil || gdb.DeletionTimestamp != nil {
+		r.Logger.Info("gdb is deleted")
+		return reconcile.Result{}, nil
+	}
+	if err := r.updateGDBStatus(gdb); err != nil {
+		return reconcile.Result{}, err
+	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -91,4 +112,36 @@ func (r *GlobalDBReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&quchengv1beta1.GlobalDB{}).
 		Complete(r)
+}
+
+func (r *GlobalDBReconciler) updateGDBStatus(gdb *quchengv1beta1.GlobalDB) error {
+	// update gdb status
+	var gstatus quchengv1beta1.GlobalDBStatus
+
+	// check network
+	dbtool := util.NewDB(gdb.Spec)
+	if dbtool == nil {
+		gstatus.Auth = false
+		gstatus.Ready = false
+		r.EventRecorder.Eventf(gdb, corev1.EventTypeWarning, "NotSupport", "Not NotSupport %v", gdb.Spec.Type)
+	} else {
+		if err := dbtool.CheckNetWork(); err != nil {
+			gstatus.Network = false
+			gstatus.Ready = false
+			r.EventRecorder.Eventf(gdb, corev1.EventTypeWarning, "NetworkUnreachable", "Failed to conn %s:%v for %v", gdb.Spec.Source.Host, gdb.Spec.Source.Port, err)
+		} else {
+			gstatus.Network = true
+			if err := dbtool.CheckAuth(); err != nil {
+				gstatus.Auth = false
+				gstatus.Ready = false
+				r.EventRecorder.Eventf(gdb, corev1.EventTypeWarning, "AuthFailed", "Failed to auth %s:%v for %v", gdb.Spec.Source.Host, gdb.Spec.Source.Port, err)
+			} else {
+				gstatus.Auth = true
+				gstatus.Ready = true
+				r.EventRecorder.Eventf(gdb, corev1.EventTypeNormal, "Success", "Success to check %s:%v network & auth", gdb.Spec.Source.Host, gdb.Spec.Source.Port)
+			}
+		}
+	}
+	gdb.Status = gstatus
+	return r.Status().Update(context.TODO(), gdb)
 }

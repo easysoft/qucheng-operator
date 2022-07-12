@@ -5,7 +5,8 @@
 # license that can be found in the LICENSE file.
 
 # Build the manager binary
-FROM hub.qucheng.com/library/god as builder
+#FROM hub.qucheng.com/library/god as builder
+FROM ysicing/god as builder
 
 ENV GOPROXY=https://goproxy.cn,direct
 WORKDIR /workspace
@@ -19,11 +20,12 @@ RUN go mod download
 # Copy the go source
 COPY cmd/ cmd/
 COPY apis/ apis/
-COPY controllers/ controllers/
 COPY pkg/ pkg/
-
+COPY controllers/ controllers/
 # Build
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o cne-operator cmd/main.go
+
+RUN upx -q cne-operator
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details

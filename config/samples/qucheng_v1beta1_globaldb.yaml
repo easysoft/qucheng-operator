@@ -6,8 +6,20 @@ spec:
   name: globaldb-sample
   type: mysql
   source:
-    mysql: 
-      host: 127.0.0.1
-      port: 3306
-      user: root
-      password: root
+    host: 127.0.0.1
+    port: 3306
+    user: root
+    pass: root
+---
+apiVersion: qucheng.easycorp.io/v1beta1
+kind: GlobalDB
+metadata:
+  name: globaldb1
+spec:
+  name: globaldb1
+  type: mysql
+  source:
+    host: 10.0.16.12
+    port: 3306
+    user: root
+    pass: Noh5couQuoovelaingoh4utael8ae4wiefi4fiewucheiguowu4co2ood5Ho8uuG

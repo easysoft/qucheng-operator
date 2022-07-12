@@ -15,7 +15,20 @@ spec:
     singular: globaldb
   scope: Namespaced
   versions:
-  - name: v1beta1
+  - additionalPrinterColumns:
+    - jsonPath: .status.network
+      name: Network
+      type: boolean
+    - jsonPath: .status.auth
+      name: Auth
+      type: boolean
+    - jsonPath: .status.ready
+      name: Ready
+      type: boolean
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: GlobalDB is the Schema for the globaldbs API
@@ -41,22 +54,16 @@ spec:
                 type: string
               source:
                 properties:
-                  mysql:
-                    properties:
-                      host:
-                        type: string
-                      pass:
-                        type: string
-                      port:
-                        type: integer
-                      user:
-                        type: string
-                    required:
-                    - host
-                    - pass
-                    type: object
+                  host:
+                    type: string
+                  pass:
+                    type: string
+                  port:
+                    type: integer
+                  user:
+                    type: string
                 required:
-                - mysql
+                - host
                 type: object
               type:
                 type: string
@@ -68,16 +75,21 @@ spec:
           status:
             description: GlobalDBStatus defines the observed state of GlobalDB
             properties:
-              childDB:
+              auth:
+                type: boolean
+              child:
                 format: int64
                 type: integer
-              ready:
+              network:
                 description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
                   of cluster Important: Run "make" to regenerate code after modifying
                   this file'
                 type: boolean
+              ready:
+                type: boolean
             required:
-            - childDB
+            - auth
+            - network
             - ready
             type: object
         type: object

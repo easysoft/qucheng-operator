@@ -17,33 +17,35 @@ import (
 type GlobalDBSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	Name   string   `json:"name" yaml:"name"`
-	Source DBSource `json:"source" yaml:"source"`
-	Type   DbType   `json:"type" yaml:"type"`
+	Name   string `json:"name" yaml:"name"`
+	Source Source `json:"source" yaml:"source"`
+	Type   DbType `json:"type" yaml:"type"`
 }
 
-type DBSource struct {
-	Mysql MysqlSource `json:"mysql" yaml:"mysql"`
-}
-
-type MysqlSource struct {
+type Source struct {
 	Host string `json:"host" yaml:"host"`
 	Port int    `json:"port,omitempty" yaml:"port,omitempty"`
 	User string `json:"user,omitempty" yaml:"user,omitempty"`
-	Pass string `json:"pass" yaml:"pass"`
+	Pass string `json:"pass,omitempty" yaml:"pass,omitempty"`
 }
 
 // GlobalDBStatus defines the observed state of GlobalDB
 type GlobalDBStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	Ready   bool  `json:"ready"`
-	ChildDB int64 `json:"childDB"`
+	Network bool  `json:"network" yaml:"network"`
+	Auth    bool  `json:"auth" yaml:"auth"`
+	Ready   bool  `json:"ready" yaml:"ready"`
+	ChildDB int64 `json:"child,omitempty" yaml:"child,omitempty"`
 }
 
 //+genclient
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="Network",type=boolean,JSONPath=`.status.network`
+//+kubebuilder:printcolumn:name="Auth",type=boolean,JSONPath=`.status.auth`
+//+kubebuilder:printcolumn:name="Ready",type=boolean,JSONPath=`.status.ready`
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // GlobalDB is the Schema for the globaldbs API
 type GlobalDB struct {
