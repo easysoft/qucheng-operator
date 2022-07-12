@@ -8,6 +8,7 @@ package qucheng
 
 import (
 	"context"
+
 	quchengv1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
 	"github.com/easysoft/qucheng-operator/controllers/base"
 	clientset "github.com/easysoft/qucheng-operator/pkg/client/clientset/versioned"
@@ -136,7 +137,7 @@ func (c *BackupController) process(key string) error {
 	archives := make([]quchengv1beta1.Archive, 0)
 
 	for _, db := range dbs.Items {
-		continue
+		// continue
 		logdb := log.WithFields(logrus.Fields{
 			"dbname": db.Spec.DbName,
 		})

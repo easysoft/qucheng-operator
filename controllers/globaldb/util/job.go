@@ -4,12 +4,4 @@
 // (2) Affero General Public License 3.0 (AGPL 3.0)
 // license that can be found in the LICENSE file.
 
-package volume
-
-import v1 "k8s.io/api/core/v1"
-
-type PvcBackup struct {
-	Pod        v1.Pod
-	VolumeName string
-	PvcName    string
-}
+package util

@@ -1,8 +1,17 @@
+// Copyright (c) 2022-2022 北京渠成软件有限公司(Beijing Qucheng Software Co., Ltd. www.qucheng.com) All rights reserved.
+// Use of this source code is covered by the following dual licenses:
+// (1) Z PUBLIC LICENSE 1.2 (ZPL 1.2)
+// (2) Affero General Public License 3.0 (AGPL 3.0)
+// license that can be found in the LICENSE file.
+
 package volume
 
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
+
 	quchengv1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -15,8 +24,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sync"
-	"time"
 )
 
 type Backupper interface {

@@ -42,7 +42,6 @@ type GlobalDBStatus struct {
 	Auth    bool   `json:"auth" yaml:"auth"`
 	Ready   bool   `json:"ready" yaml:"ready"`
 	ChildDB int64  `json:"child,omitempty" yaml:"child,omitempty"`
-	Job     bool   `json:"job,omitempty" yaml:"job,omitempty"`
 }
 
 //+genclient
@@ -54,7 +53,8 @@ type GlobalDBStatus struct {
 //+kubebuilder:printcolumn:name="Address",type=string,JSONPath=`.status.address`
 //+kubebuilder:printcolumn:name="State",type=string,JSONPath=`.spec.state`
 //+kubebuilder:printcolumn:name="Version",type=string,JSONPath=`.spec.version`
-// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+//+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+//+kubebuilder:resource:path=globaldbs,shortName=gdb
 
 // GlobalDB is the Schema for the globaldbs API
 type GlobalDB struct {

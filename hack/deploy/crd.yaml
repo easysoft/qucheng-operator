@@ -30,6 +30,8 @@ spec:
           spec:
             description: BackupSpec defines the desired state of Backup
             properties:
+              namespace:
+                type: string
               selector:
                 additionalProperties:
                   type: string
@@ -37,6 +39,7 @@ spec:
               storageName:
                 type: string
             required:
+            - namespace
             - selector
             type: object
           status:
@@ -369,6 +372,8 @@ spec:
     kind: GlobalDB
     listKind: GlobalDBList
     plural: globaldbs
+    shortNames:
+    - gdb
     singular: globaldb
   scope: Namespaced
   versions:
@@ -446,8 +451,6 @@ spec:
               child:
                 format: int64
                 type: integer
-              job:
-                type: boolean
               network:
                 type: boolean
               ready:
