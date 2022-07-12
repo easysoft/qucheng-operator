@@ -74,16 +74,18 @@ func main() {
 	s, err := newServer()
 	if err != nil {
 		s.cancelFunc()
-		panic(err)
+		setupLog.Error(err, "init server failed")
+		os.Exit(2)
 	}
 
 	resticRepoRec := veleroctrls.NewResticRepoReconciler("cne-system", s.logger, s.mgr.GetClient(), restic.DefaultMaintenanceFrequency, s.resticManager)
 	if err = resticRepoRec.SetupWithManager(s.mgr); err != nil {
-		panic(err)
+		setupLog.Error(err, "init restic repo reconciler failed")
+		os.Exit(2)
 	}
 
 	controllers := make(map[string]base.Controller)
-	b := qucheng.NewBackupController(s.quickonInf.Qucheng().V1beta1().Backups(), s.mgr.GetClient(), s.quickonClient, s.logger)
+	b := qucheng.NewBackupController(s.namespace, scheme, s.quickonInf.Qucheng().V1beta1().Backups(), s.mgr.GetClient(), s.quickonClient, s.veleroClient, s.logger, s.resticManager)
 	r := qucheng.NewRestoreController(s.quickonInf.Qucheng().V1beta1().Restores(), s.mgr.GetClient(), s.quickonClient, s.logger)
 
 	controllers["backup"] = b

@@ -8,6 +8,13 @@ package qucheng
 
 import (
 	"context"
+	"fmt"
+	"github.com/vmware-tanzu/velero/pkg/restic"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"time"
 
 	quchengv1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
 	"github.com/easysoft/qucheng-operator/controllers/base"
@@ -17,24 +24,38 @@ import (
 	"github.com/easysoft/qucheng-operator/pkg/db/mysql"
 	"github.com/easysoft/qucheng-operator/pkg/storage"
 	"github.com/sirupsen/logrus"
+	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
+	veleroclientset "github.com/vmware-tanzu/velero/pkg/generated/clientset/versioned"
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type BackupController struct {
 	*base.GenericController
-	informer quchenginformers.BackupInformer
-	lister   quchenglister.BackupLister
-	clients  clientset.Interface
-	kbClient client.Client
+	namespace     string
+	informer      quchenginformers.BackupInformer
+	lister        quchenglister.BackupLister
+	clients       clientset.Interface
+	veleroClients veleroclientset.Interface
+	kbClient      client.Client
+	schema        *runtime.Scheme
+	repoManager   restic.RepositoryManager
 }
 
-func NewBackupController(informer quchenginformers.BackupInformer, kbClient client.Client, clientset clientset.Interface, logger logrus.FieldLogger) base.Controller {
+func NewBackupController(
+	namespace string, schema *runtime.Scheme, informer quchenginformers.BackupInformer,
+	kbClient client.Client, clientset clientset.Interface, veleroClientset veleroclientset.Interface,
+	logger logrus.FieldLogger,
+	repoManager restic.RepositoryManager) base.Controller {
 	c := &BackupController{
 		GenericController: base.NewGenericController(backupControllerName, logger),
+		namespace:         namespace,
 		lister:            informer.Lister(),
 		kbClient:          kbClient,
 		clients:           clientset,
+		veleroClients:     veleroClientset,
+		schema:            schema,
+		repoManager:       repoManager,
 	}
 
 	informer.Informer().AddEventHandler(
@@ -103,7 +124,7 @@ func (c *BackupController) process(key string) error {
 	log.WithField("phase", request.Status.Phase).Infoln("updated status")
 
 	log.Infoln("find backup resources")
-	dbs, err := c.filterDbList(origin.Namespace, origin.Spec.Selector)
+	dbs, err := c.filterDbList(origin.Spec.Namespace, origin.Spec.Selector)
 	if err != nil {
 		log.WithError(err).Errorf("search backup dbs failed, with selector %v", origin.Spec.Selector)
 		return err
@@ -114,6 +135,7 @@ func (c *BackupController) process(key string) error {
 	archives := make([]quchengv1beta1.Archive, 0)
 
 	for _, db := range dbs.Items {
+		continue
 		logdb := log.WithFields(logrus.Fields{
 			"dbname": db.Spec.DbName,
 		})
@@ -164,6 +186,77 @@ func (c *BackupController) process(key string) error {
 		archives = append(archives, archive)
 	}
 
+	backupPvclist, err := c.filterPvcBackups(origin.Spec.Namespace, origin.Spec.Selector)
+	bslName := "minio"
+	for _, pvcInfo := range backupPvclist {
+		log.WithFields(logrus.Fields{
+			"pod":    pvcInfo.Pod.Name,
+			"volume": pvcInfo.VolumeName,
+			"pvc":    pvcInfo.PvcName,
+		}).Info("create podVolumeBackup")
+
+		repoName := fmt.Sprintf("%s-%s-%s", bslName, c.namespace, pvcInfo.PvcName)
+		repoPath := fmt.Sprintf("%s/%s", pvcInfo.Pod.Namespace, pvcInfo.PvcName)
+		currRepo, err := c.veleroClients.VeleroV1().ResticRepositories(c.namespace).Get(context.TODO(), repoName, metav1.GetOptions{})
+		if err != nil {
+			repo := velerov1.ResticRepository{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: repoName, Namespace: c.namespace,
+					Labels: map[string]string{
+						quchengv1beta1.BackupNameLabel: origin.Name,
+					},
+				},
+				Spec: velerov1.ResticRepositorySpec{
+					BackupStorageLocation: bslName,
+					VolumeNamespace:       repoPath,
+				},
+			}
+			currRepo, err = c.veleroClients.VeleroV1().ResticRepositories(c.namespace).Create(context.TODO(), &repo, metav1.CreateOptions{})
+			if err != nil {
+				log.WithError(err).Error("restic repository create failed")
+			}
+		}
+
+		time.Sleep(5 * time.Second)
+
+		timeStamp := time.Now().Unix()
+		pvbName := fmt.Sprintf("%s-%d", repoName, timeStamp)
+
+		pvb := velerov1.PodVolumeBackup{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:         pvbName,
+				Namespace:    c.namespace,
+				GenerateName: origin.Name + "-",
+				Labels: map[string]string{
+					velerov1.PVCUIDLabel:           pvcInfo.PvcName,
+					quchengv1beta1.BackupNameLabel: origin.Name,
+				},
+			},
+			Spec: velerov1.PodVolumeBackupSpec{
+				Pod: v1.ObjectReference{
+					Kind:      "Pod",
+					Name:      pvcInfo.Pod.Name,
+					Namespace: pvcInfo.Pod.Namespace,
+					UID:       pvcInfo.Pod.UID,
+				},
+				Node:                  pvcInfo.Pod.Spec.NodeName,
+				Volume:                pvcInfo.VolumeName,
+				BackupStorageLocation: bslName,
+				RepoIdentifier:        currRepo.Spec.ResticIdentifier,
+			},
+		}
+
+		err = controllerutil.SetControllerReference(origin, &pvb, c.schema)
+		if err != nil {
+			log.WithError(err).WithField("pvb", pvbName).Error("setup reference failed")
+		}
+
+		_, err = c.veleroClients.VeleroV1().PodVolumeBackups(c.namespace).Create(context.TODO(), &pvb, metav1.CreateOptions{})
+		if err != nil {
+			log.WithError(err).WithField("pvb", pvbName).Error("create pvb failed")
+		}
+	}
+
 	request.Status.Archives = archives
 	request.Status.Phase = quchengv1beta1.BackupPhaseCompleted
 	log.WithFields(logrus.Fields{
@@ -178,4 +271,55 @@ func (c *BackupController) filterDbList(namespace string, selector client.Matchi
 	ns := client.InNamespace(namespace)
 	err := c.kbClient.List(context.TODO(), &list, ns, selector)
 	return &list, err
+}
+
+func (c *BackupController) filterPvcBackupList(namespace string, selector client.MatchingLabels) (*v1.PersistentVolumeClaimList, error) {
+	list := v1.PersistentVolumeClaimList{}
+	ns := client.InNamespace(namespace)
+	err := c.kbClient.List(context.TODO(), &list, ns, selector)
+	return &list, err
+}
+
+func (c *BackupController) filterPvcBackups(namespace string, selector client.MatchingLabels) ([]pvcBackup, error) {
+	var result = make([]pvcBackup, 0)
+	pvcList := v1.PersistentVolumeClaimList{}
+	ns := client.InNamespace(namespace)
+	if err := c.kbClient.List(context.TODO(), &pvcList, ns, selector); err != nil {
+		return result, err
+	}
+
+	podList := v1.PodList{}
+	if err := c.kbClient.List(context.TODO(), &podList, ns, selector); err != nil {
+		return result, err
+	}
+
+	var pvcMap = make(map[string]pvcBackup)
+
+	for _, pod := range podList.Items {
+		for _, volume := range pod.Spec.Volumes {
+			if volume.PersistentVolumeClaim != nil {
+				pvcName := volume.PersistentVolumeClaim.ClaimName
+				if _, ok := pvcMap[pvcName]; !ok {
+					// todo: filter exclude pvcs
+					pvcMap[pvcName] = pvcBackup{
+						Pod:        pod,
+						VolumeName: volume.Name,
+						PvcName:    pvcName,
+					}
+				}
+			}
+		}
+	}
+
+	for _, b := range pvcMap {
+		result = append(result, b)
+	}
+
+	return result, nil
+}
+
+type pvcBackup struct {
+	Pod        v1.Pod
+	VolumeName string
+	PvcName    string
 }

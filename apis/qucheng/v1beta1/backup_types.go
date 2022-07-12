@@ -26,6 +26,7 @@ import (
 // BackupSpec defines the desired state of Backup
 type BackupSpec struct {
 	Selector    map[string]string `json:"selector"`
+	Namespace   string            `json:"namespace"`
 	StorageName string            `json:"storageName,omitempty"`
 }
 
