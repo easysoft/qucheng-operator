@@ -3,7 +3,7 @@ kind: GlobalDB
 metadata:
   name: globaldb-sample
 spec:
-  name: globaldb-sample
+  state: exist
   type: mysql
   source:
     host: 127.0.0.1
@@ -16,10 +16,44 @@ kind: GlobalDB
 metadata:
   name: globaldb1
 spec:
-  name: globaldb1
+  state: exist
   type: mysql
   source:
     host: 10.0.16.12
     port: 3306
     user: root
     pass: Noh5couQuoovelaingoh4utael8ae4wiefi4fiewucheiguowu4co2ood5Ho8uuG
+---
+apiVersion: qucheng.easycorp.io/v1beta1
+kind: GlobalDB
+metadata:
+  name: globaldb2
+spec:
+  state: exist
+  type: mysql
+  source:
+    host: test-mysql.default.svc.cluster.local
+    port: 3306
+    user: root
+    pass: password
+---
+apiVersion: qucheng.easycorp.io/v1beta1
+kind: GlobalDB
+metadata:
+  name: globaldb3
+spec:
+  state: new
+  type: mysql
+  source:
+    host: test-mysql.default.svc.cluster.local
+    port: 3306
+    user: root
+    pass: password
+---
+apiVersion: qucheng.easycorp.io/v1beta1
+kind: GlobalDB
+metadata:
+  name: globaldb4
+spec:
+  state: new
+  type: mysql

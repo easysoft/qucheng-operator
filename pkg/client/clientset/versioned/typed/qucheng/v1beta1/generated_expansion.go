@@ -23,4 +23,6 @@ type DbExpansion interface{}
 
 type DbServiceExpansion interface{}
 
+type GlobalDBExpansion interface{}
+
 type RestoreExpansion interface{}

@@ -29,6 +29,8 @@ type Interface interface {
 	Dbs() DbInformer
 	// DbServices returns a DbServiceInformer.
 	DbServices() DbServiceInformer
+	// GlobalDBs returns a GlobalDBInformer.
+	GlobalDBs() GlobalDBInformer
 	// Restores returns a RestoreInformer.
 	Restores() RestoreInformer
 }
@@ -57,6 +59,11 @@ func (v *version) Dbs() DbInformer {
 // DbServices returns a DbServiceInformer.
 func (v *version) DbServices() DbServiceInformer {
 	return &dbServiceInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// GlobalDBs returns a GlobalDBInformer.
+func (v *version) GlobalDBs() GlobalDBInformer {
+	return &globalDBInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // Restores returns a RestoreInformer.
