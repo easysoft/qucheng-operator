@@ -8,6 +8,32 @@ rules:
 - apiGroups:
   - qucheng.easycorp.io
   resources:
+  - globaldbs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - qucheng.easycorp.io
+  resources:
+  - globaldbs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - qucheng.easycorp.io
+  resources:
+  - globaldbs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - qucheng.easycorp.io
+  resources:
   - restores
   verbs:
   - create

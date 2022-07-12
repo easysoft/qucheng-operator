@@ -4,8 +4,11 @@
 // (2) Affero General Public License 3.0 (AGPL 3.0)
 // license that can be found in the LICENSE file.
 
-package hack
+//go:build tools
+// +build tools
 
-import (
-	_ "k8s.io/code-generator"
-)
+// This package imports things required by build scripts, to force `go mod` to see them as dependencies
+
+package tools
+
+import _ "k8s.io/code-generator"

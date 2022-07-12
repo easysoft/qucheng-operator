@@ -13,7 +13,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: install kind
-        uses: helm/kind-action@v1.2.0
+        uses: helm/kind-action@v1.3.0
+        with:
+          config: hack/kind/kind.yaml
       - name: install kubectl
         uses: azure/setup-kubectl@v2.1
       - name: install helm
@@ -22,12 +24,12 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: 1.18.x
-      - name: Login to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GH_TOKEN }}
+      # - name: Login to Docker Hub
+      #   uses: docker/login-action@v2
+      #   with:
+      #     registry: ghcr.io
+      #     username: ${{ github.repository_owner }}
+      #     password: ${{ secrets.GH_TOKEN }}
       - name: Cache Go Dependencies
         uses: actions/cache@v2
         with:
@@ -39,10 +41,10 @@ jobs:
           go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.46.2
           go install github.com/google/addlicense@latest
           go install golang.org/x/tools/cmd/goimports@latest
-      - name: Image Build
+      - name: Install CNE Operator
         run: |
-          IMG=ghcr.io/easysoft/qucheng-operator make docker-build
-      - name: Deploy Chart
+          make local
+          kubectl apply -f hack/deploy/deploy.yaml
+      - name: Check Status
         run: |
-          # IMG=ghcr.io/easysoft/qucheng-operator make helm-deploy
-          echo "TODO"
+          kubectl get pods -n cne-system

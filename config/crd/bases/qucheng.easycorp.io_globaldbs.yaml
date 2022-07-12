@@ -5,20 +5,33 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.0
   creationTimestamp: null
-  name: backups.qucheng.easycorp.io
+  name: globaldbs.qucheng.easycorp.io
 spec:
   group: qucheng.easycorp.io
   names:
-    kind: Backup
-    listKind: BackupList
-    plural: backups
-    singular: backup
+    kind: GlobalDB
+    listKind: GlobalDBList
+    plural: globaldbs
+    singular: globaldb
   scope: Namespaced
   versions:
-  - name: v1beta1
+  - additionalPrinterColumns:
+    - jsonPath: .status.network
+      name: Network
+      type: boolean
+    - jsonPath: .status.auth
+      name: Auth
+      type: boolean
+    - jsonPath: .status.ready
+      name: Ready
+      type: boolean
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1beta1
     schema:
       openAPIV3Schema:
-        description: Backup is the Schema for the backups API
+        description: GlobalDB is the Schema for the globaldbs API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -33,51 +46,51 @@ spec:
           metadata:
             type: object
           spec:
-            description: BackupSpec defines the desired state of Backup
+            description: GlobalDBSpec defines the desired state of GlobalDB
             properties:
-              namespace:
+              name:
+                description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
+                  Important: Run "make" to regenerate code after modifying this file'
                 type: string
-              selector:
-                additionalProperties:
-                  type: string
+              source:
+                properties:
+                  host:
+                    type: string
+                  pass:
+                    type: string
+                  port:
+                    type: integer
+                  user:
+                    type: string
+                required:
+                - host
                 type: object
-              storageName:
+              type:
                 type: string
             required:
-            - namespace
-            - selector
+            - name
+            - source
+            - type
             type: object
           status:
-            description: BackupStatus defines the observed state of Backup
+            description: GlobalDBStatus defines the observed state of GlobalDB
             properties:
-              archives:
-                items:
-                  properties:
-                    dbRef:
-                      properties:
-                        name:
-                          type: string
-                        namespace:
-                          type: string
-                      required:
-                      - name
-                      type: object
-                    path:
-                      type: string
-                  required:
-                  - dbRef
-                  - path
-                  type: object
-                type: array
-              phase:
+              auth:
+                type: boolean
+              child:
+                format: int64
+                type: integer
+              network:
                 description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
                   of cluster Important: Run "make" to regenerate code after modifying
                   this file'
-                type: string
-              reason:
-                type: string
+                type: boolean
+              ready:
+                type: boolean
             required:
-            - phase
+            - auth
+            - network
+            - ready
             type: object
         type: object
     served: true

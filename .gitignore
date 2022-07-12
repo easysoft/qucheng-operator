@@ -29,3 +29,4 @@ cover.out
 bin/
 test/
 vendor/
+*.kubeconfig
