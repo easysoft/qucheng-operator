@@ -17,26 +17,32 @@ import (
 type GlobalDBSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	Name   string `json:"name" yaml:"name"`
-	Source Source `json:"source" yaml:"source"`
-	Type   DbType `json:"type" yaml:"type"`
+	State   State  `json:"state" yaml:"state"`
+	Source  Source `json:"source,omitempty" yaml:"source,omitempty"`
+	Type    DbType `json:"type" yaml:"type"`
+	Version string `json:"version,omitempty" yaml:"version,omitempty"`
 }
 
 type Source struct {
-	Host string `json:"host" yaml:"host"`
+	Host string `json:"host,omitempty" yaml:"host,omitempty"`
 	Port int    `json:"port,omitempty" yaml:"port,omitempty"`
 	User string `json:"user,omitempty" yaml:"user,omitempty"`
 	Pass string `json:"pass,omitempty" yaml:"pass,omitempty"`
 }
 
+// +kubebuilder:validation:Enum=new;exist
+type State string
+
 // GlobalDBStatus defines the observed state of GlobalDB
 type GlobalDBStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	Network bool  `json:"network" yaml:"network"`
-	Auth    bool  `json:"auth" yaml:"auth"`
-	Ready   bool  `json:"ready" yaml:"ready"`
-	ChildDB int64 `json:"child,omitempty" yaml:"child,omitempty"`
+	Address string `json:"address,omitempty" yaml:"address,omitempty"`
+	Network bool   `json:"network" yaml:"network"`
+	Auth    bool   `json:"auth" yaml:"auth"`
+	Ready   bool   `json:"ready" yaml:"ready"`
+	ChildDB int64  `json:"child,omitempty" yaml:"child,omitempty"`
+	Job     bool   `json:"job,omitempty" yaml:"job,omitempty"`
 }
 
 //+genclient
@@ -45,6 +51,9 @@ type GlobalDBStatus struct {
 //+kubebuilder:printcolumn:name="Network",type=boolean,JSONPath=`.status.network`
 //+kubebuilder:printcolumn:name="Auth",type=boolean,JSONPath=`.status.auth`
 //+kubebuilder:printcolumn:name="Ready",type=boolean,JSONPath=`.status.ready`
+//+kubebuilder:printcolumn:name="Address",type=string,JSONPath=`.status.address`
+//+kubebuilder:printcolumn:name="State",type=string,JSONPath=`.spec.state`
+//+kubebuilder:printcolumn:name="Version",type=string,JSONPath=`.spec.version`
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // GlobalDB is the Schema for the globaldbs API

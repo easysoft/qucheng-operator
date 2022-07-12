@@ -9,9 +9,12 @@ package globaldb
 import (
 	"context"
 	"fmt"
+	"time"
 
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -28,7 +31,8 @@ import (
 )
 
 const (
-	controllerName = "globaldb-controller"
+	controllerName             = "globaldb-controller"
+	gdbCreationDelayAfterReady = time.Second * 30
 )
 
 func Add(mgr manager.Manager) error {
@@ -100,6 +104,78 @@ func (r *GlobalDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		r.Logger.Info("gdb is deleted")
 		return reconcile.Result{}, nil
 	}
+	// if gdb is not exist, we should create it
+	if gdb.Spec.State == "new" {
+		r.Logger.Infof("gdb %s is new will create", gdb.Name)
+		pass := gdb.Spec.Source.Pass
+		if len(pass) == 0 {
+			// TODO gen password
+			pass = "password"
+		}
+		// create gdb job
+		gdbJob := &batchv1.Job{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Job",
+				APIVersion: "batch/v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      gdb.Name,
+				Namespace: "cne-system",
+			},
+			Spec: batchv1.JobSpec{
+				Parallelism:             ptrint32(1),
+				Completions:             ptrint32(1),
+				BackoffLimit:            ptrint32(1),
+				TTLSecondsAfterFinished: ptrint32(120),
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{},
+					Spec: corev1.PodSpec{
+						ServiceAccountName: "qucheng-controller-manager",
+						RestartPolicy:      corev1.RestartPolicyOnFailure,
+						Containers: []corev1.Container{
+							{
+								Name:  gdb.Name,
+								Image: "hub.qucheng.com/platform/helmtool:mysql",
+								// Command: []string{"sleep", "36000"},
+								Env: []corev1.EnvVar{
+									{
+										Name:  "GDB_NAME",
+										Value: gdb.Name,
+									},
+									{
+										Name:  "NAMESPACE",
+										Value: gdb.Namespace,
+									},
+									{
+										Name:  "GDB_PASS",
+										Value: pass,
+									},
+								},
+								Resources: corev1.ResourceRequirements{},
+							},
+						},
+					},
+				},
+			},
+		}
+		if err = r.Create(ctx, gdbJob); err != nil {
+			return reconcile.Result{}, fmt.Errorf("failed to create gdb job %s: %v", req.NamespacedName.Name, err)
+		}
+		r.Logger.Infof("create gdb job %s success", gdbJob.Name)
+		if err := r.updateGDB(gdb, fmt.Sprintf("%s-mysql.%s.svc", gdb.Name, gdb.Namespace), pass); err != nil {
+			return reconcile.Result{}, err
+		}
+		r.Logger.Infof("create gdb job %s success", gdbJob.Name)
+		// check ready ok ?
+		if isReady, delay := getGDBReadyAndDelaytime(gdb); !isReady {
+			r.Logger.Infof("skip for gdb %s has not ready yet.", req.Name)
+			return reconcile.Result{}, nil
+		} else if delay > 0 {
+			r.Logger.Infof("skip for gdb %s waiting for ready %s.", req.Name, delay)
+			return reconcile.Result{RequeueAfter: delay}, nil
+		}
+		return reconcile.Result{}, nil
+	}
 	if err := r.updateGDBStatus(gdb); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -112,6 +188,16 @@ func (r *GlobalDBReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&quchengv1beta1.GlobalDB{}).
 		Complete(r)
+}
+
+func (r *GlobalDBReconciler) updateGDB(gdb *quchengv1beta1.GlobalDB, host, pass string) error {
+	gdb.Spec.Source.Host = host
+	gdb.Spec.Source.Pass = pass
+	gdb.Spec.Source.User = "root"
+	gdb.Spec.Source.Port = 3306
+	gdb.Spec.State = "exist"
+	gdb.Status.Job = true
+	return r.Update(context.TODO(), gdb)
 }
 
 func (r *GlobalDBReconciler) updateGDBStatus(gdb *quchengv1beta1.GlobalDB) error {
@@ -142,6 +228,32 @@ func (r *GlobalDBReconciler) updateGDBStatus(gdb *quchengv1beta1.GlobalDB) error
 			}
 		}
 	}
+	gstatus.Address = fmt.Sprintf("%s:%d", gdb.Spec.Source.Host, gdb.Spec.Source.Port)
 	gdb.Status = gstatus
 	return r.Status().Update(context.TODO(), gdb)
+}
+
+func getGDBReadyAndDelaytime(gdb *quchengv1beta1.GlobalDB) (bool, time.Duration) {
+	if getGDBStatus(&gdb.Status) {
+		return false, 0
+	}
+	delay := gdbCreationDelayAfterReady - time.Since(gdb.CreationTimestamp.Time)
+	if delay > 0 {
+		return true, delay
+	}
+	return true, 0
+}
+
+func getGDBStatus(status *quchengv1beta1.GlobalDBStatus) bool {
+	if status == nil {
+		return false
+	}
+	if status.Job {
+		return true
+	}
+	return false
+}
+
+func ptrint32(p int32) *int32 {
+	return &p
 }
