@@ -8,6 +8,9 @@ package qucheng
 
 import (
 	"context"
+	"github.com/easysoft/qucheng-operator/pkg/volume"
+	veleroclientset "github.com/vmware-tanzu/velero/pkg/generated/clientset/versioned"
+	veleroinformers "github.com/vmware-tanzu/velero/pkg/generated/informers/externalversions"
 
 	quchengv1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
 	"github.com/easysoft/qucheng-operator/controllers/base"
@@ -60,20 +63,34 @@ func (r *RestoreReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 type RestoreController struct {
 	*base.GenericController
-	informer quchenginformers.RestoreInformer
-	lister   quchenglister.RestoreLister
-	clients  clientset.Interface
-	kbClient client.Client
-
-	logger logrus.FieldLogger
+	ctx           context.Context
+	namespace     string
+	informer      quchenginformers.RestoreInformer
+	lister        quchenglister.RestoreLister
+	clients       clientset.Interface
+	veleroClients veleroclientset.Interface
+	veleroInfs    veleroinformers.SharedInformerFactory
+	kbClient      client.Client
+	schema        *runtime.Scheme
+	logger        logrus.FieldLogger
 }
 
-func NewRestoreController(informer quchenginformers.RestoreInformer, kbClient client.Client, clientset clientset.Interface, logger logrus.FieldLogger) base.Controller {
+func NewRestoreController(ctx context.Context, namespace string, schema *runtime.Scheme,
+	informer quchenginformers.RestoreInformer, kbClient client.Client, clientset clientset.Interface,
+	veleroClientset veleroclientset.Interface,
+	veleroInfs veleroinformers.SharedInformerFactory, logger logrus.FieldLogger,
+) base.Controller {
 	c := &RestoreController{
+		ctx:               ctx,
+		namespace:         namespace,
+		schema:            schema,
 		GenericController: base.NewGenericController(restoreControllerName, logger),
 		lister:            informer.Lister(),
 		kbClient:          kbClient,
 		clients:           clientset,
+		veleroClients:     veleroClientset,
+		veleroInfs:        veleroInfs,
+		logger:            logger,
 	}
 
 	informer.Informer().AddEventHandler(
@@ -149,6 +166,7 @@ func (c *RestoreController) process(key string) error {
 	log.Infof("find %d resources need for restore", len(backup.Status.Archives))
 
 	for _, archive := range backup.Status.Archives {
+		continue
 		var db quchengv1beta1.Db
 		store := storage.NewFileStorage()
 
@@ -191,6 +209,20 @@ func (c *RestoreController) process(key string) error {
 		}
 
 		log.Infof("restore %s success", archive.Path)
+	}
+
+	volumeRestorer := volume.NewRestorer(request, c.schema, c.veleroClients, c.kbClient, c.veleroInfs, c.logger)
+	pvbList, err := volumeRestorer.FindPodVolumeBackups(c.namespace)
+	if err != nil {
+		return err
+	}
+
+	for _, pvb := range pvbList.Items {
+		volumeRestorer.AddTask(c.namespace, &pvb)
+	}
+
+	if err = volumeRestorer.WaitSync(c.ctx); err != nil {
+		return err
 	}
 
 	log.Infoln("restore completed")

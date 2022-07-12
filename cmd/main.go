@@ -85,12 +85,18 @@ func main() {
 	}
 
 	controllers := make(map[string]base.Controller)
-	b := qucheng.NewBackupController(s.namespace, scheme, s.quickonInf.Qucheng().V1beta1().Backups(), s.mgr.GetClient(), s.quickonClient, s.veleroClient, s.logger, s.resticManager)
-	r := qucheng.NewRestoreController(s.quickonInf.Qucheng().V1beta1().Restores(), s.mgr.GetClient(), s.quickonClient, s.logger)
+	b := qucheng.NewBackupController(s.ctx, s.namespace, scheme, s.quickonInf.Qucheng().V1beta1().Backups(), s.mgr.GetClient(), s.quickonClient, s.veleroClient,
+		s.veleroInf, s.logger, s.resticManager)
+	r := qucheng.NewRestoreController(s.ctx, s.namespace, scheme, s.quickonInf.Qucheng().V1beta1().Restores(), s.mgr.GetClient(), s.quickonClient, s.veleroClient, s.veleroInf, s.logger)
 
 	controllers["backup"] = b
 	controllers["restore"] = r
 
+	// enabled pvb && pvr events watch
+	_ = s.veleroInf.Velero().V1().PodVolumeBackups().Informer()
+	_ = s.veleroInf.Velero().V1().PodVolumeRestores().Informer()
+
+	// start informers cache
 	s.veleroInf.Start(s.ctx.Done())
 	s.quickonInf.Start(s.ctx.Done())
 
@@ -135,6 +141,7 @@ func newServer() (*server, error) {
 
 	logger := logrus.New()
 	logger.SetOutput(os.Stdout)
+	logger.SetLevel(logrus.DebugLevel)
 	logger.SetFormatter(&logrus.TextFormatter{
 		ForceQuote:       true,
 		TimestampFormat:  time.RFC3339,
