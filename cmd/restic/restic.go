@@ -13,6 +13,6 @@ import (
 )
 
 func main() {
-	v := velerov1api.PodVolumeBackupStatus{}
+	v := velerov1api.DbBackupPhaseStatus{}
 	fmt.Println(v)
 }

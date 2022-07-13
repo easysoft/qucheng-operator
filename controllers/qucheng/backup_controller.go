@@ -13,14 +13,12 @@ import (
 	clientset "github.com/easysoft/qucheng-operator/pkg/client/clientset/versioned"
 	quchenginformers "github.com/easysoft/qucheng-operator/pkg/client/informers/externalversions/qucheng/v1beta1"
 	quchenglister "github.com/easysoft/qucheng-operator/pkg/client/listers/qucheng/v1beta1"
-	"github.com/easysoft/qucheng-operator/pkg/db/mysql"
-	"github.com/easysoft/qucheng-operator/pkg/storage"
+	"github.com/easysoft/qucheng-operator/pkg/db"
 	"github.com/easysoft/qucheng-operator/pkg/volume"
 	"github.com/sirupsen/logrus"
 	veleroclientset "github.com/vmware-tanzu/velero/pkg/generated/clientset/versioned"
 	veleroinformers "github.com/vmware-tanzu/velero/pkg/generated/informers/externalversions"
 	"github.com/vmware-tanzu/velero/pkg/restic"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -125,71 +123,85 @@ func (c *BackupController) process(key string) error {
 	}
 	log.WithField("phase", request.Status.Phase).Infoln("updated status")
 
-	log.Infoln("find backup resources")
-	dbs, err := c.filterDbList(origin.Spec.Namespace, origin.Spec.Selector)
-	if err != nil {
-		log.WithError(err).Errorf("search backup dbs failed, with selector %v", origin.Spec.Selector)
-		return err
-	}
-
-	log.Infof("find %d dbs to backup", len(dbs.Items))
-
 	archives := make([]quchengv1beta1.Archive, 0)
 
 	ctx, cannelFunc := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cannelFunc()
 
-	for _, db := range dbs.Items {
-		continue
-		logdb := log.WithFields(logrus.Fields{
-			"dbname": db.Spec.DbName,
-		})
-		p := mysql.NewParser(c.kbClient, &db, logdb)
-		access, err := p.ParseAccessInfo()
-		if err != nil {
-			logdb.WithError(err).Error("parse db access info failed")
-			return err
-		}
-
-		backupReq := mysql.NewBackupRequest(access, db.Spec.DbName)
-		err = backupReq.Run()
-		if err != nil {
-			logdb.WithError(err).Error("execute mysql backup failed")
-			request.Status.Phase = quchengv1beta1.BackupPhaseExecuteFailed
-			request.Status.Reason = backupReq.Errors()
-			_ = c.kbClient.Status().Update(context.TODO(), request)
-			logdb.WithFields(logrus.Fields{
-				"phase": request.Status.Phase, "reason": request.Status.Reason,
-			}).Info("update status to failed")
-			return err
-		}
-
-		backupInfo := storage.BackupInfo{
-			BackupTime: backupReq.BackupTime, Name: name, Namespace: ns,
-			File: backupReq.BackupFile.FullPath, FileFd: backupReq.BackupFile.Fd,
-		}
-		logdb.Infof("temporary backup file path %s", backupReq.BackupFile.FullPath)
-
-		store := storage.NewFileStorage()
-		err = store.PutBackup(backupInfo)
-		if err != nil {
-			logdb.WithError(err).Error("put backup file to persistent storage failed")
-			request.Status.Phase = quchengv1beta1.BackupPhaseUploadFailure
-			request.Status.Reason = backupReq.Errors()
-			_ = c.kbClient.Status().Update(context.TODO(), request)
-			logdb.WithFields(logrus.Fields{
-				"phase": request.Status.Phase, "reason": request.Status.Reason,
-			}).Info("update status to failed")
-			return err
-		}
-
-		archive := quchengv1beta1.Archive{
-			Path:  store.GetAbsPath(),
-			DbRef: &quchengv1beta1.DbRef{Name: db.Name},
-		}
-		logdb.Infof("archive successful, storage path %s", store.GetAbsPath())
-		archives = append(archives, archive)
+	dbBackupper, err := db.NewBackupper(ctx, origin, c.schema, c.kbClient, c.clients, log)
+	if err != nil {
+		return err
 	}
+
+	log.Infoln("find backup dbs")
+	dbs, err := dbBackupper.FindBackupDbs(origin.Spec.Namespace, origin.Spec.Selector)
+	if err != nil {
+		log.WithError(err).Errorf("search backup dbs failed, with selector %v", origin.Spec.Selector)
+		return err
+	}
+	log.Infof("find %d dbs to backup", len(dbs.Items))
+
+	for _, d := range dbs.Items {
+		dbBackupper.AddTask(c.namespace, &d)
+	}
+
+	err = dbBackupper.WaitSync(ctx)
+	if err != nil {
+		log.WithError(err).Error("backup dbs ")
+		request.Status.Phase = quchengv1beta1.BackupPhaseExecuteFailed
+		return c.kbClient.Status().Update(context.TODO(), request)
+	}
+	log.Infoln("all of dbs was backed up")
+	//for _, db := range dbs.Items {
+	//	logdb := log.WithFields(logrus.Fields{
+	//		"dbname": db.Spec.DbName,
+	//	})
+	//	p := mysql.NewParser(c.kbClient, &db, logdb)
+	//	access, err := p.ParseAccessInfo()
+	//	if err != nil {
+	//		logdb.WithError(err).Error("parse db access info failed")
+	//		return err
+	//	}
+	//
+	//	backupReq := mysql.NewBackupRequest(access, db.Spec.DbName)
+	//	err = backupReq.Run()
+	//	if err != nil {
+	//		logdb.WithError(err).Error("execute mysql backup failed")
+	//		request.Status.Phase = quchengv1beta1.BackupPhaseExecuteFailed
+	//		request.Status.Reason = backupReq.Errors()
+	//		_ = c.kbClient.Status().Update(context.TODO(), request)
+	//		logdb.WithFields(logrus.Fields{
+	//			"phase": request.Status.Phase, "reason": request.Status.Reason,
+	//		}).Info("update status to failed")
+	//		return err
+	//	}
+	//
+	//	backupInfo := storage.BackupInfo{
+	//		BackupTime: backupReq.BackupTime, Name: name, Namespace: ns,
+	//		File: backupReq.BackupFile.FullPath, FileFd: backupReq.BackupFile.Fd,
+	//	}
+	//	logdb.Infof("temporary backup file path %s", backupReq.BackupFile.FullPath)
+	//
+	//	store := storage.NewFileStorage()
+	//	err = store.PutBackup(backupInfo)
+	//	if err != nil {
+	//		logdb.WithError(err).Error("put backup file to persistent storage failed")
+	//		request.Status.Phase = quchengv1beta1.BackupPhaseUploadFailure
+	//		request.Status.Reason = backupReq.Errors()
+	//		_ = c.kbClient.Status().Update(context.TODO(), request)
+	//		logdb.WithFields(logrus.Fields{
+	//			"phase": request.Status.Phase, "reason": request.Status.Reason,
+	//		}).Info("update status to failed")
+	//		return err
+	//	}
+	//
+	//	archive := quchengv1beta1.Archive{
+	//		Path:  store.GetAbsPath(),
+	//		DbRef: &quchengv1beta1.DbRef{Name: db.Name},
+	//	}
+	//	logdb.Infof("archive successful, storage path %s", store.GetAbsPath())
+	//	archives = append(archives, archive)
+	//}
 
 	bslName := "minio"
 	backupper, err := volume.NewBackupper(ctx, origin, c.schema, c.veleroClients, c.kbClient, c.veleroInfs, log, bslName)
@@ -199,7 +211,6 @@ func (c *BackupController) process(key string) error {
 
 	backupPvclist, err := backupper.FindBackupPvcs(origin.Spec.Namespace, origin.Spec.Selector)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	for _, pvcInfo := range backupPvclist {
@@ -208,7 +219,6 @@ func (c *BackupController) process(key string) error {
 			log.WithError(err).WithField("pvc", pvcInfo.PvcName).Error("ensure repo failed")
 			return err
 		}
-
 		backupper.AddTask(c.namespace, resticRepo, pvcInfo)
 	}
 
@@ -217,6 +227,7 @@ func (c *BackupController) process(key string) error {
 		request.Status.Phase = quchengv1beta1.BackupPhaseExecuteFailed
 		return c.kbClient.Status().Update(context.TODO(), request)
 	}
+	log.Infoln("all of volumes was backed up")
 
 	request.Status.Archives = archives
 	request.Status.Phase = quchengv1beta1.BackupPhaseCompleted
@@ -224,63 +235,4 @@ func (c *BackupController) process(key string) error {
 		"phase": request.Status.Phase,
 	}).Info("update status to completed")
 	return c.kbClient.Status().Update(context.TODO(), request)
-}
-
-func (c *BackupController) filterDbList(namespace string, selector client.MatchingLabels) (*quchengv1beta1.DbList, error) {
-	list := quchengv1beta1.DbList{}
-
-	ns := client.InNamespace(namespace)
-	err := c.kbClient.List(context.TODO(), &list, ns, selector)
-	return &list, err
-}
-
-func (c *BackupController) filterPvcBackupList(namespace string, selector client.MatchingLabels) (*v1.PersistentVolumeClaimList, error) {
-	list := v1.PersistentVolumeClaimList{}
-	ns := client.InNamespace(namespace)
-	err := c.kbClient.List(context.TODO(), &list, ns, selector)
-	return &list, err
-}
-
-func (c *BackupController) filterPvcBackups(namespace string, selector client.MatchingLabels) ([]pvcBackup, error) {
-	var result = make([]pvcBackup, 0)
-	pvcList := v1.PersistentVolumeClaimList{}
-	ns := client.InNamespace(namespace)
-	if err := c.kbClient.List(context.TODO(), &pvcList, ns, selector); err != nil {
-		return result, err
-	}
-
-	podList := v1.PodList{}
-	if err := c.kbClient.List(context.TODO(), &podList, ns, selector); err != nil {
-		return result, err
-	}
-
-	var pvcMap = make(map[string]pvcBackup)
-
-	for _, pod := range podList.Items {
-		for _, volume := range pod.Spec.Volumes {
-			if volume.PersistentVolumeClaim != nil {
-				pvcName := volume.PersistentVolumeClaim.ClaimName
-				if _, ok := pvcMap[pvcName]; !ok {
-					// todo: filter exclude pvcs
-					pvcMap[pvcName] = pvcBackup{
-						Pod:        pod,
-						VolumeName: volume.Name,
-						PvcName:    pvcName,
-					}
-				}
-			}
-		}
-	}
-
-	for _, b := range pvcMap {
-		result = append(result, b)
-	}
-
-	return result, nil
-}
-
-type pvcBackup struct {
-	Pod        v1.Pod
-	VolumeName string
-	PvcName    string
 }

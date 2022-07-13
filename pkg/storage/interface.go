@@ -24,7 +24,7 @@ type BackupInfo struct {
 }
 
 type Storage interface {
-	PutBackup(info BackupInfo) error
+	PutBackup(info *BackupInfo) error
 	PullBackup(path string) (string, error)
 	GetAbsPath() string
 }

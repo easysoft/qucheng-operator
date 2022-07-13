@@ -24,10 +24,10 @@ type Parser struct {
 	c   client.Client
 	obj *quchengv1beta1.Db
 
-	logger *logrus.Entry
+	logger logrus.FieldLogger
 }
 
-func NewParser(c client.Client, obj *quchengv1beta1.Db, logger *logrus.Entry) db.InterFace {
+func NewParser(c client.Client, obj *quchengv1beta1.Db, logger logrus.FieldLogger) db.InterFace {
 	return &Parser{
 		c: c, obj: obj,
 		logger: logger,

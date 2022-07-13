@@ -26,7 +26,7 @@ func NewFileStorage() Storage {
 	return &fileStorage{}
 }
 
-func (f *fileStorage) PutBackup(info BackupInfo) error {
+func (f *fileStorage) PutBackup(info *BackupInfo) error {
 	absDir := f.genBackupPath(info.Name, info.Namespace, info.BackupTime)
 	err := os.MkdirAll(filepath.Join(_defaultBackupRoot, absDir), 0755)
 	if err != nil {

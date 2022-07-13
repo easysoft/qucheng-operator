@@ -1,0 +1,6 @@
+apiVersion: qucheng.easycorp.io/v1beta1
+kind: DbBackup
+metadata:
+  name: dbbackup-sample
+spec:
+  # TODO(user): Add fields here

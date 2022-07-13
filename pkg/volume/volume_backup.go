@@ -246,15 +246,21 @@ func (b *backupper) AddTask(namespace string, repo *velerov1.ResticRepository, p
 func (b *backupper) WaitSync(ctx context.Context) error {
 	log := b.log
 	log.Info("start wait sync")
+	var err error
+
 	for {
 		select {
 		case <-time.After(time.Minute):
-			return errors.New("timed out waiting for restic repository to become ready")
+			err = errors.New("timed out waiting for restic repository to become ready")
+			goto ERROR
 		case <-ctx.Done():
-			return errors.New("timed out waiting for restic repository to become ready")
+			err = errors.New("timed out waiting for restic repository to become ready")
+			goto ERROR
 		case res := <-b.pvbChan:
+			log.Debugf("receive pvb %s with status %s", res.Name, res.Status.Phase)
 			if res.Status.Phase == velerov1.PodVolumeBackupPhaseFailed {
-				return errors.Errorf("podVolumeBackup failed: %s", res.Status.Message)
+				err = errors.Errorf("podVolumeBackup failed: %s", res.Status.Message)
+				goto ERROR
 			}
 
 			if _, ok := b.tasks[res.Name]; ok {
@@ -268,6 +274,9 @@ func (b *backupper) WaitSync(ctx context.Context) error {
 			}
 		}
 	}
+
+ERROR:
+	return err
 
 END:
 	return nil

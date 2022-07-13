@@ -1,0 +1,173 @@
+/*
+Copyright 2022.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package qucheng
+
+import (
+	"context"
+	"github.com/easysoft/qucheng-operator/pkg/db/mysql"
+	"github.com/easysoft/qucheng-operator/pkg/storage"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/clock"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	quchengv1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
+)
+
+// DbBackupReconciler reconciles a DbBackup object
+type DbBackupReconciler struct {
+	logger logrus.FieldLogger
+	client.Client
+	Clock  clock.Clock
+	Scheme *runtime.Scheme
+}
+
+func NewDbBackupReconciler(client client.Client, schema *runtime.Scheme, logger logrus.FieldLogger) *DbBackupReconciler {
+	r := DbBackupReconciler{
+		Client: client, Scheme: schema,
+		logger: logger.WithField("controller", "dbbackup"), Clock: clock.RealClock{},
+	}
+	return &r
+}
+
+//+kubebuilder:rbac:groups=qucheng.easycorp.io,resources=dbbackups,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=qucheng.easycorp.io,resources=dbbackups/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=qucheng.easycorp.io,resources=dbbackups/finalizers,verbs=update
+
+// Reconcile is part of the main kubernetes reconciliation loop which aims to
+// move the current state of the cluster closer to the desired state.
+// TODO(user): Modify the Reconcile function to compare the state specified by
+// the DbBackup object against the actual cluster state, and then
+// perform operations to make the cluster state reflect the state specified by
+// the user.
+//
+// For more details, check Reconcile and its Result here:
+// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
+func (r *DbBackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	log := r.logger
+
+	var dbb quchengv1beta1.DbBackup
+	if err := r.Get(ctx, req.NamespacedName, &dbb); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Debug("Unable to find DbBackup")
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, errors.Wrap(err, "getting DbBackup")
+	}
+
+	log = log.WithField("dbb", dbb.Name)
+	r.logger = log
+
+	switch dbb.Status.Phase {
+	case "", quchengv1beta1.DbBackupPhasePhaseNew:
+		// Only process new items.
+	default:
+		log.Debug("DbBackup is not new, not processing")
+		return ctrl.Result{}, nil
+	}
+
+	//original := dbb.DeepCopy()
+	dbb.Status.Phase = quchengv1beta1.DbBackupPhasePhaseInProgress
+	dbb.Status.StartTimestamp = &metav1.Time{Time: r.Clock.Now()}
+	if err := r.Status().Update(ctx, &dbb); err != nil {
+		log.WithError(err).Error("error updating DbBackup status")
+		return ctrl.Result{}, err
+	}
+
+	dbRef := dbb.Spec.Db
+	var db quchengv1beta1.Db
+	if err := r.Client.Get(ctx, client.ObjectKey{Name: dbRef.Name, Namespace: dbRef.Namespace}, &db); err != nil {
+		log.WithError(err).Error("db not found")
+		return ctrl.Result{}, err
+	}
+
+	info, err := r.processDump(&db)
+	if err != nil {
+		log.WithError(err).Error("execute mysql backup failed")
+		dbb.Status.Phase = quchengv1beta1.DbBackupPhasePhaseFailed
+		dbb.Status.Message = err.Error()
+		_ = r.Status().Update(context.TODO(), &dbb)
+		log.WithFields(logrus.Fields{
+			"phase": dbb.Status.Phase,
+		}).Info("update status to failed")
+		return ctrl.Result{}, err
+	}
+
+	err = r.processPersistent(info)
+	if err != nil {
+		log.WithError(err).Error("put backup file to persistent storage failed")
+		dbb.Status.Phase = quchengv1beta1.DbBackupPhasePhaseFailed
+		dbb.Status.Message = err.Error()
+		_ = r.Status().Update(context.TODO(), &dbb)
+		log.WithFields(logrus.Fields{
+			"phase": dbb.Status.Phase,
+		}).Info("update status to failed")
+		return ctrl.Result{}, err
+	}
+
+	dbb.Status.Phase = quchengv1beta1.DbBackupPhasePhaseCompleted
+	if err := r.Status().Update(ctx, &dbb); err != nil {
+		log.WithError(err).Error("error updating DbBackup status")
+		return ctrl.Result{}, err
+	}
+	log.WithFields(logrus.Fields{
+		"phase": dbb.Status.Phase,
+	}).Info("update status to completed")
+	return ctrl.Result{}, nil
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *DbBackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&quchengv1beta1.DbBackup{}).
+		Complete(r)
+}
+
+func (r *DbBackupReconciler) processDump(db *quchengv1beta1.Db) (*storage.BackupInfo, error) {
+	log := r.logger
+	p := mysql.NewParser(r.Client, db, r.logger)
+	access, err := p.ParseAccessInfo()
+	if err != nil {
+		log.WithError(err).Error("parse db access info failed")
+		return nil, err
+	}
+
+	backupReq := mysql.NewBackupRequest(access, db.Spec.DbName)
+	err = backupReq.Run()
+	if err != nil {
+		return nil, errors.New(backupReq.Errors())
+	}
+
+	// todo setup name, old is backup's name
+	name := "qweqweqwe"
+	backupInfo := storage.BackupInfo{
+		BackupTime: backupReq.BackupTime, Name: name, Namespace: db.Namespace,
+		File: backupReq.BackupFile.FullPath, FileFd: backupReq.BackupFile.Fd,
+	}
+
+	return &backupInfo, nil
+}
+
+func (r *DbBackupReconciler) processPersistent(info *storage.BackupInfo) error {
+	store := storage.NewFileStorage()
+	err := store.PutBackup(info)
+	return err
+}
