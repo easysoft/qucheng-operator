@@ -94,10 +94,6 @@ func main() {
 	controllers["backup"] = b
 	controllers["restore"] = r
 
-	// enabled pvb && pvr events watch
-	_ = s.veleroInf.Velero().V1().PodVolumeBackups().Informer()
-	_ = s.veleroInf.Velero().V1().PodVolumeRestores().Informer()
-
 	// start informers cache
 	s.veleroInf.Start(s.ctx.Done())
 	s.quickonInf.Start(s.ctx.Done())

@@ -11,6 +11,7 @@ import (
 	"github.com/easysoft/qucheng-operator/pkg/volume"
 	veleroclientset "github.com/vmware-tanzu/velero/pkg/generated/clientset/versioned"
 	veleroinformers "github.com/vmware-tanzu/velero/pkg/generated/informers/externalversions"
+	"time"
 
 	quchengv1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
 	"github.com/easysoft/qucheng-operator/controllers/base"
@@ -165,6 +166,9 @@ func (c *RestoreController) process(key string) error {
 	log.Infoln("got backup", backup.Spec, backup.Status)
 	log.Infof("find %d resources need for restore", len(backup.Status.Archives))
 
+	ctx, cannelFunc := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cannelFunc()
+
 	for _, archive := range backup.Status.Archives {
 		continue
 		var db quchengv1beta1.Db
@@ -211,7 +215,10 @@ func (c *RestoreController) process(key string) error {
 		log.Infof("restore %s success", archive.Path)
 	}
 
-	volumeRestorer := volume.NewRestorer(request, c.schema, c.veleroClients, c.kbClient, c.veleroInfs, c.logger)
+	volumeRestorer, err := volume.NewRestorer(ctx, request, c.schema, c.veleroClients, c.kbClient, c.veleroInfs, c.logger)
+	if err != nil {
+		return err
+	}
 	pvbList, err := volumeRestorer.FindPodVolumeBackups(c.namespace)
 	if err != nil {
 		return err

@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"time"
 )
 
 type BackupController struct {
@@ -135,6 +136,9 @@ func (c *BackupController) process(key string) error {
 
 	archives := make([]quchengv1beta1.Archive, 0)
 
+	ctx, cannelFunc := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cannelFunc()
+
 	for _, db := range dbs.Items {
 		continue
 		logdb := log.WithFields(logrus.Fields{
@@ -188,7 +192,11 @@ func (c *BackupController) process(key string) error {
 	}
 
 	bslName := "minio"
-	backupper := volume.NewBackupper(origin, c.schema, c.veleroClients, c.kbClient, c.veleroInfs, log, bslName)
+	backupper, err := volume.NewBackupper(ctx, origin, c.schema, c.veleroClients, c.kbClient, c.veleroInfs, log, bslName)
+	if err != nil {
+		return err
+	}
+
 	backupPvclist, err := backupper.FindBackupPvcs(origin.Spec.Namespace, origin.Spec.Selector)
 	if err != nil {
 		log.Error(err)

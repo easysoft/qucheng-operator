@@ -9,6 +9,7 @@ import (
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	veleroclientset "github.com/vmware-tanzu/velero/pkg/generated/clientset/versioned"
 	veleroinformers "github.com/vmware-tanzu/velero/pkg/generated/informers/externalversions"
+	velerov1informers "github.com/vmware-tanzu/velero/pkg/generated/informers/externalversions/velero/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -39,16 +40,11 @@ type backupper struct {
 	pvbChan       chan *velerov1.PodVolumeBackup
 }
 
-//type repoKey struct {
-//	volumeNamespace string
-//	backupLocation  string
-//}
-
-func NewBackupper(backup *quchengv1beta1.Backup, schema *runtime.Scheme,
+func NewBackupper(ctx context.Context, backup *quchengv1beta1.Backup, schema *runtime.Scheme,
 	veleroClient veleroclientset.Interface, kbClient client.Client,
 	veleroinfs veleroinformers.SharedInformerFactory,
 	log logrus.FieldLogger, bslName string,
-) Backupper {
+) (Backupper, error) {
 	b := &backupper{
 		backup:        backup,
 		schema:        schema,
@@ -62,8 +58,17 @@ func NewBackupper(backup *quchengv1beta1.Backup, schema *runtime.Scheme,
 		pvbChan:       make(chan *velerov1.PodVolumeBackup),
 	}
 
-	repoInf := veleroinfs.Velero().V1().ResticRepositories()
-	repoInf.Informer().AddEventHandler(
+	pvbInf := velerov1informers.NewFilteredPodVolumeBackupInformer(
+		veleroClient, backup.Namespace, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+		func(opts *metav1.ListOptions) {
+			opts.LabelSelector = fmt.Sprintf("%s=%s", quchengv1beta1.BackupNameLabel, backup.Name)
+		})
+
+	repoInf := velerov1informers.NewResticRepositoryInformer(
+		veleroClient, backup.Namespace, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+	)
+
+	repoInf.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			UpdateFunc: func(old, new interface{}) {
 				oldObj := old.(*velerov1.ResticRepository)
@@ -87,8 +92,7 @@ func NewBackupper(backup *quchengv1beta1.Backup, schema *runtime.Scheme,
 			},
 		})
 
-	pvbInf := veleroinfs.Velero().V1().PodVolumeBackups()
-	pvbInf.Informer().AddEventHandler(
+	pvbInf.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			UpdateFunc: func(old, new interface{}) {
 				oldObj := old.(*velerov1.PodVolumeBackup)
@@ -106,7 +110,13 @@ func NewBackupper(backup *quchengv1beta1.Backup, schema *runtime.Scheme,
 				b.pvbChan <- newObj
 			},
 		})
-	return b
+
+	go pvbInf.Run(ctx.Done())
+	go repoInf.Run(ctx.Done())
+	if !cache.WaitForCacheSync(ctx.Done(), pvbInf.HasSynced, repoInf.HasSynced) {
+		return nil, errors.New("timed out waiting for caches to sync")
+	}
+	return b, nil
 }
 
 func (b *backupper) FindBackupPvcs(namespace string, selector client.MatchingLabels) ([]PvcBackup, error) {

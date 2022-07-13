@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"github.com/easysoft/qucheng-operator/controllers/globaldb"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -10,7 +9,7 @@ import (
 var controllerAddFuncs []func(manager.Manager) error
 
 func init() {
-	controllerAddFuncs = append(controllerAddFuncs, globaldb.Add)
+	//controllerAddFuncs = append(controllerAddFuncs, globaldb.Add)
 }
 
 func SetupWithManager(m manager.Manager) error {

@@ -9,6 +9,7 @@ import (
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	veleroclientset "github.com/vmware-tanzu/velero/pkg/generated/clientset/versioned"
 	veleroinformers "github.com/vmware-tanzu/velero/pkg/generated/informers/externalversions"
+	velerov1informers "github.com/vmware-tanzu/velero/pkg/generated/informers/externalversions/velero/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,11 +38,11 @@ type restorer struct {
 	pvrChan       chan *velerov1.PodVolumeRestore
 }
 
-func NewRestorer(restore *quchengv1beta1.Restore, schema *runtime.Scheme,
+func NewRestorer(ctx context.Context, restore *quchengv1beta1.Restore, schema *runtime.Scheme,
 	veleroClient veleroclientset.Interface, kbClient client.Client,
 	veleroinfs veleroinformers.SharedInformerFactory,
 	log logrus.FieldLogger,
-) Restorer {
+) (Restorer, error) {
 	r := &restorer{
 		restore:       restore,
 		schema:        schema,
@@ -52,8 +53,13 @@ func NewRestorer(restore *quchengv1beta1.Restore, schema *runtime.Scheme,
 		pvrChan:       make(chan *velerov1.PodVolumeRestore),
 	}
 
-	pvrInf := veleroinfs.Velero().V1().PodVolumeRestores()
-	pvrInf.Informer().AddEventHandler(
+	pvrInf := velerov1informers.NewFilteredPodVolumeRestoreInformer(
+		veleroClient, restore.Namespace, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+		func(opts *metav1.ListOptions) {
+			opts.LabelSelector = fmt.Sprintf("%s=%s", quchengv1beta1.RestoreNameLabel, restore.Name)
+		})
+
+	pvrInf.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			UpdateFunc: func(old, new interface{}) {
 				oldObj := old.(*velerov1.PodVolumeRestore)
@@ -70,7 +76,12 @@ func NewRestorer(restore *quchengv1beta1.Restore, schema *runtime.Scheme,
 				r.pvrChan <- newObj
 			},
 		})
-	return r
+
+	go pvrInf.Run(ctx.Done())
+	if !cache.WaitForCacheSync(ctx.Done(), pvrInf.HasSynced) {
+		return nil, errors.New("timed out waiting for caches to sync")
+	}
+	return r, nil
 }
 
 func (r *restorer) FindPodVolumeBackups(namespace string) (*velerov1.PodVolumeBackupList, error) {
