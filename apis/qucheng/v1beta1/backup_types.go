@@ -34,9 +34,12 @@ type BackupSpec struct {
 type BackupStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	Phase    BackupPhase `json:"phase"`
-	Reason   string      `json:"reason,omitempty"`
-	Archives []Archive   `json:"archives,omitempty"`
+	Phase               BackupPhase  `json:"phase"`
+	Reason              string       `json:"reason,omitempty"`
+	Message             string       `json:"message,omitempty"`
+	StartTimestamp      *metav1.Time `json:"startTimestamp,omitempty"`
+	CompletionTimestamp *metav1.Time `json:"completionTimestamp,omitempty"`
+	Archives            []Archive    `json:"archives,omitempty"`
 }
 
 type Archive struct {

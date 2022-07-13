@@ -9,7 +9,6 @@ package db
 import (
 	"context"
 	"fmt"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -31,7 +30,7 @@ import (
 )
 
 const (
-	controllerName             = "db-controller"
+	controllerName = "db-controller"
 )
 
 func Add(mgr manager.Manager) error {

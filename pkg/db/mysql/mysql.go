@@ -21,8 +21,9 @@ import (
 )
 
 type Parser struct {
-	c   client.Client
-	obj *quchengv1beta1.Db
+	c         client.Client
+	obj       *quchengv1beta1.Db
+	dbService *quchengv1beta1.DbService
 
 	logger logrus.FieldLogger
 }
@@ -45,6 +46,7 @@ func (p *Parser) ParseAccessInfo() (*db.AccessInfo, error) {
 	if err := p.c.Get(context.TODO(), dbServiceKey, dbService); err != nil {
 		return nil, err
 	}
+	data.DbType = string(dbService.Spec.Type)
 
 	svcSpec := dbService.Spec.Service
 	svcKey := client.ObjectKey{Name: svcSpec.Name, Namespace: svcSpec.Namespace}

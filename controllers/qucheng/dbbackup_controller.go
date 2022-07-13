@@ -18,16 +18,21 @@ package qucheng
 
 import (
 	"context"
+	"fmt"
+	"github.com/easysoft/qucheng-operator/pkg/db"
 	"github.com/easysoft/qucheng-operator/pkg/db/mysql"
 	"github.com/easysoft/qucheng-operator/pkg/storage"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/clock"
+	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"time"
 
 	quchengv1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
 )
@@ -36,14 +41,14 @@ import (
 type DbBackupReconciler struct {
 	logger logrus.FieldLogger
 	client.Client
-	Clock  clock.Clock
+	clock  clock.Clock
 	Scheme *runtime.Scheme
 }
 
 func NewDbBackupReconciler(client client.Client, schema *runtime.Scheme, logger logrus.FieldLogger) *DbBackupReconciler {
 	r := DbBackupReconciler{
 		Client: client, Scheme: schema,
-		logger: logger.WithField("controller", "dbbackup"), Clock: clock.RealClock{},
+		logger: logger.WithField("controller", "dbbackup"), clock: clock.RealClock{},
 	}
 	return &r
 }
@@ -86,7 +91,7 @@ func (r *DbBackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	//original := dbb.DeepCopy()
 	dbb.Status.Phase = quchengv1beta1.DbBackupPhasePhaseInProgress
-	dbb.Status.StartTimestamp = &metav1.Time{Time: r.Clock.Now()}
+	dbb.Status.StartTimestamp = &metav1.Time{Time: r.clock.Now()}
 	if err := r.Status().Update(ctx, &dbb); err != nil {
 		log.WithError(err).Error("error updating DbBackup status")
 		return ctrl.Result{}, err
@@ -95,42 +100,30 @@ func (r *DbBackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	dbRef := dbb.Spec.Db
 	var db quchengv1beta1.Db
 	if err := r.Client.Get(ctx, client.ObjectKey{Name: dbRef.Name, Namespace: dbRef.Namespace}, &db); err != nil {
-		log.WithError(err).Error("db not found")
-		return ctrl.Result{}, err
+		return r.updateStatusToFailed(ctx, &dbb, err, "db not found", log)
 	}
 
-	info, err := r.processDump(&db)
+	dbInfo, backupFd, err := r.processDump(&db)
 	if err != nil {
-		log.WithError(err).Error("execute mysql backup failed")
-		dbb.Status.Phase = quchengv1beta1.DbBackupPhasePhaseFailed
-		dbb.Status.Message = err.Error()
-		_ = r.Status().Update(context.TODO(), &dbb)
-		log.WithFields(logrus.Fields{
-			"phase": dbb.Status.Phase,
-		}).Info("update status to failed")
-		return ctrl.Result{}, err
+		return r.updateStatusToFailed(ctx, &dbb, err, "execute db backup failed", log)
 	}
 
-	err = r.processPersistent(info)
+	appName := dbb.Labels[quchengv1beta1.ApplicationNameLabel]
+	path := r.genPersistentPath(appName, dbInfo.DbType, &db)
+
+	size, err := r.processPersistent(path, backupFd)
 	if err != nil {
-		log.WithError(err).Error("put backup file to persistent storage failed")
-		dbb.Status.Phase = quchengv1beta1.DbBackupPhasePhaseFailed
-		dbb.Status.Message = err.Error()
-		_ = r.Status().Update(context.TODO(), &dbb)
-		log.WithFields(logrus.Fields{
-			"phase": dbb.Status.Phase,
-		}).Info("update status to failed")
-		return ctrl.Result{}, err
+		return r.updateStatusToFailed(ctx, &dbb, err, "put backup file to persistent storage failed", log)
 	}
 
 	dbb.Status.Phase = quchengv1beta1.DbBackupPhasePhaseCompleted
+	dbb.Status.Path = path
+	dbb.Status.Size = resource.NewQuantity(size, resource.BinarySI)
 	if err := r.Status().Update(ctx, &dbb); err != nil {
 		log.WithError(err).Error("error updating DbBackup status")
 		return ctrl.Result{}, err
 	}
-	log.WithFields(logrus.Fields{
-		"phase": dbb.Status.Phase,
-	}).Info("update status to completed")
+	log.WithFields(logrus.Fields{"phase": dbb.Status.Phase}).Info("update status to completed")
 	return ctrl.Result{}, nil
 }
 
@@ -141,33 +134,56 @@ func (r *DbBackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *DbBackupReconciler) processDump(db *quchengv1beta1.Db) (*storage.BackupInfo, error) {
+func (r *DbBackupReconciler) updateStatusToFailed(ctx context.Context, dbb *quchengv1beta1.DbBackup, err error, msg string, log logrus.FieldLogger) (ctrl.Result, error) {
+	original := dbb.DeepCopy()
+	dbb.Status.Phase = quchengv1beta1.DbBackupPhasePhaseFailed
+	dbb.Status.Message = errors.WithMessage(err, msg).Error()
+	dbb.Status.CompletionTimestamp = &metav1.Time{Time: r.clock.Now()}
+
+	log.WithError(err).Error(msg)
+
+	if err = r.Status().Patch(ctx, dbb, client.MergeFrom(original)); err != nil {
+		log.WithError(err).Error("error updating Backup status")
+		return ctrl.Result{}, err
+	}
+
+	return ctrl.Result{}, err
+}
+
+func (r *DbBackupReconciler) processDump(db *quchengv1beta1.Db) (*db.AccessInfo, *os.File, error) {
 	log := r.logger
 	p := mysql.NewParser(r.Client, db, r.logger)
 	access, err := p.ParseAccessInfo()
 	if err != nil {
 		log.WithError(err).Error("parse db access info failed")
-		return nil, err
+		return nil, nil, err
 	}
 
 	backupReq := mysql.NewBackupRequest(access, db.Spec.DbName)
 	err = backupReq.Run()
 	if err != nil {
-		return nil, errors.New(backupReq.Errors())
+		return nil, nil, errors.New(backupReq.Errors())
 	}
 
-	// todo setup name, old is backup's name
-	name := "qweqweqwe"
-	backupInfo := storage.BackupInfo{
-		BackupTime: backupReq.BackupTime, Name: name, Namespace: db.Namespace,
-		File: backupReq.BackupFile.FullPath, FileFd: backupReq.BackupFile.Fd,
-	}
-
-	return &backupInfo, nil
+	return access, backupReq.BackupFile, nil
 }
 
-func (r *DbBackupReconciler) processPersistent(info *storage.BackupInfo) error {
+func (r *DbBackupReconciler) processPersistent(absPath string, fd *os.File) (int64, error) {
 	store := storage.NewFileStorage()
-	err := store.PutBackup(info)
-	return err
+	defer func() {
+		fd.Close()
+		os.Remove(fd.Name())
+	}()
+	size, err := store.PutBackup(absPath, fd)
+	return size, err
+}
+
+func (r *DbBackupReconciler) genPersistentPath(appName, dbType string, db *quchengv1beta1.Db) string {
+	var suffix = "dump"
+	switch dbType {
+	case quchengv1beta1.DbTypeMysql:
+		suffix = "sql"
+	}
+	return fmt.Sprintf("%s/%s/%s.%s.%s.%s", db.Namespace, appName, dbType, db.Spec.DbName,
+		time.Now().Format("20060102150405"), suffix)
 }

@@ -8,7 +8,6 @@ package qucheng
 
 import (
 	"context"
-
 	quchengv1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
 	"github.com/easysoft/qucheng-operator/controllers/base"
 	clientset "github.com/easysoft/qucheng-operator/pkg/client/clientset/versioned"
@@ -16,11 +15,14 @@ import (
 	quchenglister "github.com/easysoft/qucheng-operator/pkg/client/listers/qucheng/v1beta1"
 	"github.com/easysoft/qucheng-operator/pkg/db"
 	"github.com/easysoft/qucheng-operator/pkg/volume"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	veleroclientset "github.com/vmware-tanzu/velero/pkg/generated/clientset/versioned"
 	veleroinformers "github.com/vmware-tanzu/velero/pkg/generated/informers/externalversions"
 	"github.com/vmware-tanzu/velero/pkg/restic"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
@@ -37,6 +39,7 @@ type BackupController struct {
 	veleroInfs    veleroinformers.SharedInformerFactory
 	kbClient      client.Client
 	schema        *runtime.Scheme
+	clock         clock.Clock
 	repoManager   restic.RepositoryManager
 }
 
@@ -56,6 +59,7 @@ func NewBackupController(
 		veleroClients:     veleroClientset,
 		veleroInfs:        veleroInfs,
 		schema:            schema,
+		clock:             clock.RealClock{},
 		repoManager:       repoManager,
 	}
 
@@ -105,40 +109,37 @@ func (c *BackupController) process(key string) error {
 
 	log := c.Logger.WithFields(logrus.Fields{"name": name, "namespace": ns})
 
-	origin, err := c.lister.Backups(ns).Get(name)
+	backup, err := c.lister.Backups(ns).Get(name)
 	if err != nil {
 		log.WithError(err).Error("get backup field")
 		return err
 	}
 
-	if origin.Status.Phase != "" && origin.Status.Phase != quchengv1beta1.BackupPhaseNew {
-		log.Infoln("backup is not new, skip")
+	if backup.Status.Phase != "" && backup.Status.Phase != quchengv1beta1.BackupPhaseNew {
+		log.Debugln("backup is not new, skip")
 		return nil
 	}
 
-	request := origin.DeepCopy()
-	request.Status.Phase = quchengv1beta1.BackupPhaseProcess
-	if err = c.kbClient.Status().Update(context.TODO(), request); err != nil {
+	original := backup.DeepCopy()
+	backup.Status.Phase = quchengv1beta1.BackupPhaseProcess
+	if err = c.kbClient.Patch(c.ctx, backup, client.MergeFrom(original)); err != nil {
 		log.WithError(err).Error("update status failed")
 		return err
 	}
-	log.WithField("phase", request.Status.Phase).Infoln("updated status")
-
-	archives := make([]quchengv1beta1.Archive, 0)
+	log.WithField("phase", backup.Status.Phase).Infoln("updated status")
 
 	ctx, cannelFunc := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cannelFunc()
 
-	dbBackupper, err := db.NewBackupper(ctx, origin, c.schema, c.kbClient, c.clients, log)
+	dbBackupper, err := db.NewBackupper(ctx, backup, c.schema, c.kbClient, c.clients, log)
 	if err != nil {
-		return err
+		return c.updateStatusToFailed(ctx, backup, err, "init db backupper failed", log)
 	}
 
 	log.Infoln("find backup dbs")
-	dbs, err := dbBackupper.FindBackupDbs(origin.Spec.Namespace, origin.Spec.Selector)
+	dbs, err := dbBackupper.FindBackupDbs(backup.Spec.Namespace, backup.Spec.Selector)
 	if err != nil {
-		log.WithError(err).Errorf("search backup dbs failed, with selector %v", origin.Spec.Selector)
-		return err
+		return c.updateStatusToFailed(ctx, backup, err, "search backup dbs failed", log)
 	}
 	log.Infof("find %d dbs to backup", len(dbs.Items))
 
@@ -148,42 +149,54 @@ func (c *BackupController) process(key string) error {
 
 	err = dbBackupper.WaitSync(ctx)
 	if err != nil {
-		log.WithError(err).Error("backup dbs ")
-		request.Status.Phase = quchengv1beta1.BackupPhaseExecuteFailed
-		return c.kbClient.Status().Update(context.TODO(), request)
+		return c.updateStatusToFailed(ctx, backup, err, "not all tasks complete with success", log)
 	}
 	log.Infoln("all of dbs was backed up")
 
 	bslName := "minio"
-	backupper, err := volume.NewBackupper(ctx, origin, c.schema, c.veleroClients, c.kbClient, c.veleroInfs, log, bslName)
+	backupper, err := volume.NewBackupper(ctx, backup, c.schema, c.veleroClients, c.kbClient, log, bslName)
 	if err != nil {
-		return err
+		return c.updateStatusToFailed(ctx, backup, err, "init volume backupper failed", log)
 	}
 
-	backupPvclist, err := backupper.FindBackupPvcs(origin.Spec.Namespace, origin.Spec.Selector)
+	backupPvclist, err := backupper.FindBackupPvcs(backup.Spec.Namespace, backup.Spec.Selector)
 	if err != nil {
-		return err
+		return c.updateStatusToFailed(ctx, backup, err, "lookup backup pvc list failed", log)
 	}
+
 	for _, pvcInfo := range backupPvclist {
 		resticRepo, err := backupper.EnsureRepo(c.ctx, pvcInfo, c.namespace)
 		if err != nil {
-			log.WithError(err).WithField("pvc", pvcInfo.PvcName).Error("ensure repo failed")
-			return err
+			return c.updateStatusToFailed(ctx, backup, err, "ensure repo failed", log.WithField("pvc", pvcInfo.PvcName))
 		}
 		backupper.AddTask(c.namespace, resticRepo, pvcInfo)
 	}
 
 	err = backupper.WaitSync(c.ctx)
 	if err != nil {
-		request.Status.Phase = quchengv1beta1.BackupPhaseExecuteFailed
-		return c.kbClient.Status().Update(context.TODO(), request)
+		return c.updateStatusToFailed(ctx, backup, err, "not all tasks complete with success", log)
 	}
+
 	log.Infoln("all of volumes was backed up")
 
-	request.Status.Archives = archives
-	request.Status.Phase = quchengv1beta1.BackupPhaseCompleted
-	log.WithFields(logrus.Fields{
-		"phase": request.Status.Phase,
-	}).Info("update status to completed")
-	return c.kbClient.Status().Update(context.TODO(), request)
+	backup.Status.Phase = quchengv1beta1.BackupPhaseCompleted
+	backup.Status.CompletionTimestamp = &metav1.Time{Time: c.clock.Now()}
+	log.WithFields(logrus.Fields{"phase": backup.Status.Phase}).Info("update status to completed")
+	return c.kbClient.Status().Update(context.TODO(), backup)
+}
+
+func (c *BackupController) updateStatusToFailed(ctx context.Context, backup *quchengv1beta1.Backup, err error, msg string, log logrus.FieldLogger) error {
+	original := backup.DeepCopy()
+	backup.Status.Phase = quchengv1beta1.BackupPhaseFailed
+	backup.Status.Message = errors.WithMessage(err, msg).Error()
+	backup.Status.CompletionTimestamp = &metav1.Time{Time: c.clock.Now()}
+
+	log.WithError(err).Error(msg)
+
+	if err = c.kbClient.Status().Patch(ctx, backup, client.MergeFrom(original)); err != nil {
+		log.WithError(err).Error("error updating Backup status")
+		return err
+	}
+
+	return err
 }

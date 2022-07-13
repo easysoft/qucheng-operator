@@ -34,13 +34,7 @@ type BackupAction struct {
 	errLogFile string
 
 	errMessage string
-	BackupFile BackupFile
-}
-
-type BackupFile struct {
-	AbsPath  string
-	FullPath string
-	Fd       *os.File
+	BackupFile *os.File
 }
 
 func NewBackupRequest(access *db.AccessInfo, dbName string) *BackupAction {
@@ -70,14 +64,13 @@ func (b *BackupAction) Run() error {
 		return err
 	}
 
-	b.BackupFile = BackupFile{AbsPath: b.outputFile, FullPath: f.Name(), Fd: f}
+	b.BackupFile = f
 
 	stderr, _ := os.Create(b.GenerateFullPath(b.errLogFile))
 	defer func() {
 		os.Remove(extraFile)
-		if err == nil {
-			os.Remove(stderr.Name())
-		}
+		stderr.Close()
+		os.Remove(stderr.Name())
 	}()
 
 	cmd := exec.Command("mysqldump", commandArgs...)

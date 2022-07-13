@@ -20,13 +20,13 @@ type RestoreAction struct {
 	*db.AccessInfo
 	dbName string
 
-	restoreFile string
+	restoreFile *os.File
 	errLogFile  string
 
 	errMessage string
 }
 
-func NewRestoreRequest(access *db.AccessInfo, dbName string, restoreFile string) *RestoreAction {
+func NewRestoreRequest(access *db.AccessInfo, dbName string, restoreFile *os.File) *RestoreAction {
 
 	_ = os.MkdirAll(backupRoot, 0755)
 
@@ -42,11 +42,6 @@ func (r *RestoreAction) Run() error {
 	extraFile := r.buildExtraFile()
 	commandArgs := []string{"--defaults-extra-file=" + extraFile, "--database", r.dbName}
 
-	f, err := os.Open(r.restoreFile)
-	if err != nil {
-		return err
-	}
-
 	stderr, _ := ioutil.TempFile("/tmp", "")
 	defer func() {
 		os.Remove(extraFile)
@@ -56,7 +51,7 @@ func (r *RestoreAction) Run() error {
 	}()
 
 	cmd := exec.Command("mysql", commandArgs...)
-	cmd.Stdin = f
+	cmd.Stdin = r.restoreFile
 	cmd.Stderr = stderr
 	err = cmd.Run()
 

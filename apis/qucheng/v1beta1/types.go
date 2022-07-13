@@ -48,6 +48,7 @@ type GlobalDBPhase string
 const (
 	BackupPhaseNew           BackupPhase = "New"
 	BackupPhaseProcess       BackupPhase = "Processing"
+	BackupPhaseFailed        BackupPhase = "Failed"
 	BackupPhaseExecuteFailed BackupPhase = "ExecuteFailed"
 
 	BackupPhaseUploading     BackupPhase = "Uploading"

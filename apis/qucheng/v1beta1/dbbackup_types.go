@@ -18,6 +18,7 @@ package v1beta1
 
 import (
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -26,9 +27,6 @@ import (
 
 // DbBackupSpec defines the desired state of DbBackup
 type DbBackupSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	Db                    v1.ObjectReference `json:"db"`
 	BackupStorageLocation string             `json:"backupStorageLocation,omitempty"`
 	RepoIdentifier        string             `json:"repoIdentifier,omitempty"`
@@ -45,18 +43,17 @@ const (
 
 // DbBackupStatus defines the observed state of DbBackup
 type DbBackupStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-	Phase DbBackupPhase `json:"phase"`
-
-	Message string `json:"message,omitempty"`
-
-	StartTimestamp *metav1.Time `json:"startTimestamp,omitempty"`
-
-	CompletionTimestamp *metav1.Time `json:"completionTimestamp,omitempty"`
+	Phase               DbBackupPhase      `json:"phase"`
+	Path                string             `json:"path"`
+	Size                *resource.Quantity `json:"size,omitempty"`
+	Message             string             `json:"message,omitempty"`
+	StartTimestamp      *metav1.Time       `json:"startTimestamp,omitempty"`
+	CompletionTimestamp *metav1.Time       `json:"completionTimestamp,omitempty"`
 }
 
 //+genclient
+//+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="DbBackup status such as New/InProgress"
+//+kubebuilder:printcolumn:name="Size",type="string",JSONPath=".status.size",description="backup file size"
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 

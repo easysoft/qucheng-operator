@@ -32,6 +32,7 @@ type backupper struct {
 	log           logrus.FieldLogger
 	tasks         map[string]quchengv1beta1.DbBackup
 	dbbChan       chan *quchengv1beta1.DbBackup
+	appName       string
 }
 
 func NewBackupper(ctx context.Context, backup *quchengv1beta1.Backup, schema *runtime.Scheme,
@@ -46,6 +47,10 @@ func NewBackupper(ctx context.Context, backup *quchengv1beta1.Backup, schema *ru
 		log:           log,
 		tasks:         make(map[string]quchengv1beta1.DbBackup),
 		dbbChan:       make(chan *quchengv1beta1.DbBackup),
+	}
+
+	if appName := backup.Spec.Selector[quchengv1beta1.SelectorReleaseKey]; appName != "" {
+		b.appName = appName
 	}
 
 	inf := quickonv1binfs.NewFilteredDbBackupInformer(quickonClient,
@@ -97,7 +102,8 @@ func (b *backupper) AddTask(namespace string, db *quchengv1beta1.Db) {
 			Name:      dbbName,
 			Namespace: namespace,
 			Labels: map[string]string{
-				quchengv1beta1.BackupNameLabel: b.backup.Name,
+				quchengv1beta1.BackupNameLabel:      b.backup.Name,
+				quchengv1beta1.ApplicationNameLabel: b.appName,
 			},
 		},
 		Spec: quchengv1beta1.DbBackupSpec{

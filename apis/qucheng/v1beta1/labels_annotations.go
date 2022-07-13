@@ -9,4 +9,10 @@ package v1beta1
 const (
 	BackupNameLabel  = "easycorp.io/backup_name"
 	RestoreNameLabel = "easycorp.io/restore_name"
+
+	ApplicationNameLabel = "easycorp.io/app_release_name"
+)
+
+const (
+	SelectorReleaseKey = "release"
 )

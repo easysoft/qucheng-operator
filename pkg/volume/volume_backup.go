@@ -17,7 +17,6 @@ import (
 	"github.com/sirupsen/logrus"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	veleroclientset "github.com/vmware-tanzu/velero/pkg/generated/clientset/versioned"
-	veleroinformers "github.com/vmware-tanzu/velero/pkg/generated/informers/externalversions"
 	velerov1informers "github.com/vmware-tanzu/velero/pkg/generated/informers/externalversions/velero/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,11 +44,11 @@ type backupper struct {
 	repoChans     map[string]chan *velerov1.ResticRepository
 	repoLocks     map[string]*sync.Mutex
 	pvbChan       chan *velerov1.PodVolumeBackup
+	appName       string
 }
 
 func NewBackupper(ctx context.Context, backup *quchengv1beta1.Backup, schema *runtime.Scheme,
 	veleroClient veleroclientset.Interface, kbClient client.Client,
-	veleroinfs veleroinformers.SharedInformerFactory,
 	log logrus.FieldLogger, bslName string,
 ) (Backupper, error) {
 	b := &backupper{
@@ -63,6 +62,10 @@ func NewBackupper(ctx context.Context, backup *quchengv1beta1.Backup, schema *ru
 		repoChans:     make(map[string]chan *velerov1.ResticRepository),
 		repoLocks:     make(map[string]*sync.Mutex),
 		pvbChan:       make(chan *velerov1.PodVolumeBackup),
+	}
+
+	if appName := backup.Spec.Selector[quchengv1beta1.SelectorReleaseKey]; appName != "" {
+		b.appName = appName
 	}
 
 	pvbInf := velerov1informers.NewFilteredPodVolumeBackupInformer(
@@ -160,7 +163,7 @@ func (b *backupper) FindBackupPvcs(namespace string, selector client.MatchingLab
 
 func (b *backupper) EnsureRepo(ctx context.Context, p PvcBackup, namespace string) (*velerov1.ResticRepository, error) {
 	repoName := fmt.Sprintf("%s-%s-%s", b.bslName, namespace, p.PvcName)
-	repoPath := fmt.Sprintf("%s/%s", p.Pod.Namespace, p.PvcName)
+	repoPath := fmt.Sprintf("%s/%s/%s", p.Pod.Namespace, b.appName, p.PvcName)
 	log := b.log
 
 	currRepo, err := b.veleroClients.VeleroV1().ResticRepositories(namespace).Get(context.TODO(), repoName, metav1.GetOptions{})

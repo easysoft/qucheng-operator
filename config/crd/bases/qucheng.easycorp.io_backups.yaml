@@ -69,12 +69,20 @@ spec:
                   - path
                   type: object
                 type: array
+              completionTimestamp:
+                format: date-time
+                type: string
+              message:
+                type: string
               phase:
                 description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
                   of cluster Important: Run "make" to regenerate code after modifying
                   this file'
                 type: string
               reason:
+                type: string
+              startTimestamp:
+                format: date-time
                 type: string
             required:
             - phase

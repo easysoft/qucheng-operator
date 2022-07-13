@@ -11,6 +11,7 @@ type InterFace interface {
 }
 
 type AccessInfo struct {
+	DbType   string
 	Host     string
 	Port     int32
 	User     string
