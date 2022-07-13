@@ -5,8 +5,7 @@
 # license that can be found in the LICENSE file.
 
 # Build the manager binary
-#FROM hub.qucheng.com/library/god as builder
-FROM ysicing/god as builder
+FROM hub.qucheng.com/library/god as builder
 
 ENV GOPROXY=https://goproxy.cn,direct
 WORKDIR /workspace

@@ -8,6 +8,7 @@ package qucheng
 
 import (
 	"context"
+
 	"github.com/easysoft/qucheng-operator/pkg/volume"
 	veleroclientset "github.com/vmware-tanzu/velero/pkg/generated/clientset/versioned"
 	veleroinformers "github.com/vmware-tanzu/velero/pkg/generated/informers/externalversions"
@@ -170,7 +171,7 @@ func (c *RestoreController) process(key string) error {
 	defer cannelFunc()
 
 	for _, archive := range backup.Status.Archives {
-		continue
+		// continue
 		var db quchengv1beta1.Db
 		store := storage.NewFileStorage()
 

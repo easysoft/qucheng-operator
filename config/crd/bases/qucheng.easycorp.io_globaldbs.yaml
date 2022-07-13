@@ -12,6 +12,8 @@ spec:
     kind: GlobalDB
     listKind: GlobalDBList
     plural: globaldbs
+    shortNames:
+    - gdb
     singular: globaldb
   scope: Namespaced
   versions:
@@ -25,6 +27,15 @@ spec:
     - jsonPath: .status.ready
       name: Ready
       type: boolean
+    - jsonPath: .status.address
+      name: Address
+      type: string
+    - jsonPath: .spec.state
+      name: State
+      type: string
+    - jsonPath: .spec.version
+      name: Version
+      type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
@@ -48,10 +59,6 @@ spec:
           spec:
             description: GlobalDBSpec defines the desired state of GlobalDB
             properties:
-              name:
-                description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-                  Important: Run "make" to regenerate code after modifying this file'
-                type: string
               source:
                 properties:
                   host:
@@ -62,28 +69,36 @@ spec:
                     type: integer
                   user:
                     type: string
-                required:
-                - host
                 type: object
+              state:
+                description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
+                  Important: Run "make" to regenerate code after modifying this file'
+                enum:
+                - new
+                - exist
+                type: string
               type:
                 type: string
+              version:
+                type: string
             required:
-            - name
-            - source
+            - state
             - type
             type: object
           status:
             description: GlobalDBStatus defines the observed state of GlobalDB
             properties:
+              address:
+                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
+                  of cluster Important: Run "make" to regenerate code after modifying
+                  this file'
+                type: string
               auth:
                 type: boolean
               child:
                 format: int64
                 type: integer
               network:
-                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
-                  of cluster Important: Run "make" to regenerate code after modifying
-                  this file'
                 type: boolean
               ready:
                 type: boolean

@@ -8,6 +8,7 @@ package qucheng
 
 import (
 	"context"
+
 	quchengv1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
 	"github.com/easysoft/qucheng-operator/controllers/base"
 	clientset "github.com/easysoft/qucheng-operator/pkg/client/clientset/versioned"
@@ -152,56 +153,6 @@ func (c *BackupController) process(key string) error {
 		return c.kbClient.Status().Update(context.TODO(), request)
 	}
 	log.Infoln("all of dbs was backed up")
-	//for _, db := range dbs.Items {
-	//	logdb := log.WithFields(logrus.Fields{
-	//		"dbname": db.Spec.DbName,
-	//	})
-	//	p := mysql.NewParser(c.kbClient, &db, logdb)
-	//	access, err := p.ParseAccessInfo()
-	//	if err != nil {
-	//		logdb.WithError(err).Error("parse db access info failed")
-	//		return err
-	//	}
-	//
-	//	backupReq := mysql.NewBackupRequest(access, db.Spec.DbName)
-	//	err = backupReq.Run()
-	//	if err != nil {
-	//		logdb.WithError(err).Error("execute mysql backup failed")
-	//		request.Status.Phase = quchengv1beta1.BackupPhaseExecuteFailed
-	//		request.Status.Reason = backupReq.Errors()
-	//		_ = c.kbClient.Status().Update(context.TODO(), request)
-	//		logdb.WithFields(logrus.Fields{
-	//			"phase": request.Status.Phase, "reason": request.Status.Reason,
-	//		}).Info("update status to failed")
-	//		return err
-	//	}
-	//
-	//	backupInfo := storage.BackupInfo{
-	//		BackupTime: backupReq.BackupTime, Name: name, Namespace: ns,
-	//		File: backupReq.BackupFile.FullPath, FileFd: backupReq.BackupFile.Fd,
-	//	}
-	//	logdb.Infof("temporary backup file path %s", backupReq.BackupFile.FullPath)
-	//
-	//	store := storage.NewFileStorage()
-	//	err = store.PutBackup(backupInfo)
-	//	if err != nil {
-	//		logdb.WithError(err).Error("put backup file to persistent storage failed")
-	//		request.Status.Phase = quchengv1beta1.BackupPhaseUploadFailure
-	//		request.Status.Reason = backupReq.Errors()
-	//		_ = c.kbClient.Status().Update(context.TODO(), request)
-	//		logdb.WithFields(logrus.Fields{
-	//			"phase": request.Status.Phase, "reason": request.Status.Reason,
-	//		}).Info("update status to failed")
-	//		return err
-	//	}
-	//
-	//	archive := quchengv1beta1.Archive{
-	//		Path:  store.GetAbsPath(),
-	//		DbRef: &quchengv1beta1.DbRef{Name: db.Name},
-	//	}
-	//	logdb.Infof("archive successful, storage path %s", store.GetAbsPath())
-	//	archives = append(archives, archive)
-	//}
 
 	bslName := "minio"
 	backupper, err := volume.NewBackupper(ctx, origin, c.schema, c.veleroClients, c.kbClient, c.veleroInfs, log, bslName)

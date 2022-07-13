@@ -43,6 +43,7 @@ type ValueSource struct {
 
 type BackupPhase string
 type RestorePhase string
+type GlobalDBPhase string
 
 const (
 	BackupPhaseNew           BackupPhase = "New"
@@ -62,4 +63,9 @@ const (
 	RestorePhaseDownloading     RestorePhase = "Downloading"
 	RestorePhaseDownloadFailure RestorePhase = "DownloadFailed"
 	RestorePhaseCompleted       RestorePhase = "Completed"
+)
+
+const (
+	GlobalDBStateNew   GlobalDBPhase = "new"
+	GlobalDBStateReady GlobalDBPhase = "ready"
 )

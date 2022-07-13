@@ -8,7 +8,10 @@ package util
 
 import (
 	"database/sql"
+	"fmt"
+	"net"
 	"strconv"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -17,18 +20,35 @@ type MysqlMeta struct {
 	DBMeta
 }
 
-func (mysql MysqlMeta) genDsn() string {
-	if mysql.Source.Port == 0 {
-		mysql.Source.Port = 3306
+func (mysql MysqlMeta) GenHost() string {
+	ns := mysql.Spec.Service.Namespace
+	if ns == "" {
+		ns = mysql.Namespace
 	}
-	if mysql.Source.User == "" {
-		mysql.Source.User = "root"
+	return fmt.Sprintf("%s.%s.svc", mysql.Spec.Service.Name, ns)
+}
+
+func (mysql MysqlMeta) GenPort() string {
+	port := mysql.Spec.Service.Port.IntValue()
+	if port == 0 {
+		port = 3306
 	}
-	return mysql.Source.User + ":" + mysql.Source.Pass + "@tcp(" + mysql.Source.Host + ":" + strconv.Itoa(mysql.Source.Port) + ")/"
+	return strconv.Itoa(port)
+}
+
+func (mysql MysqlMeta) GenDsn() string {
+	host := fmt.Sprintf("%s:%s", mysql.GenHost(), mysql.GenPort())
+	return mysql.Spec.Account.User.Value + ":" + mysql.Spec.Account.Password.Value + "@tcp(" + host + ")/"
+}
+
+func (mysql MysqlMeta) CheckNetWork() error {
+	address := net.JoinHostPort(mysql.GenHost(), mysql.GenPort())
+	_, err := net.DialTimeout("tcp", address, 5*time.Second)
+	return err
 }
 
 func (mysql MysqlMeta) CheckAuth() error {
-	db, err := sql.Open("mysql", mysql.genDsn())
+	db, err := sql.Open("mysql", mysql.GenDsn())
 	if err != nil {
 		return err
 	}
