@@ -34,6 +34,7 @@ import (
 const (
 	controllerName             = "globaldb-controller"
 	gdbCreationDelayAfterReady = time.Second * 30
+	minRequeueDuration         = time.Second * 5
 )
 
 func Add(mgr manager.Manager) error {
@@ -124,8 +125,7 @@ func (r *GlobalDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if err := r.updateGDBStatus(gdb); err != nil {
 		return reconcile.Result{}, err
 	}
-
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: minRequeueDuration}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

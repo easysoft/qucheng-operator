@@ -231,10 +231,28 @@ spec:
     kind: DbService
     listKind: DbServiceList
     plural: dbservices
+    shortNames:
+    - dbsvc
     singular: dbservice
   scope: Namespaced
   versions:
-  - name: v1beta1
+  - additionalPrinterColumns:
+    - jsonPath: .status.network
+      name: Network
+      type: boolean
+    - jsonPath: .status.auth
+      name: Auth
+      type: boolean
+    - jsonPath: .status.ready
+      name: Ready
+      type: boolean
+    - jsonPath: .status.address
+      name: Address
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: DbService is the Schema for the dbservices API
@@ -347,11 +365,28 @@ spec:
               type:
                 type: string
             required:
-            - account
+            - service
             - type
             type: object
           status:
             description: DbServiceStatus defines the observed state of DbService
+            properties:
+              address:
+                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state of cluster Important: Run "make" to regenerate code after modifying this file'
+                type: string
+              auth:
+                type: boolean
+              child:
+                format: int64
+                type: integer
+              network:
+                type: boolean
+              ready:
+                type: boolean
+            required:
+            - auth
+            - network
+            - ready
             type: object
         type: object
     served: true

@@ -4,7 +4,7 @@ networking:
   serviceSubnet: "10.96.0.0/16"
   podSubnet: "10.97.0.0/16"
   kubeProxyMode: "ipvs"
-  ipFamily: dual
+  # ipFamily: dual
   apiServerAddress: "127.0.0.1"
   apiServerPort: 6443
 featureGates:
@@ -29,9 +29,12 @@ nodes:
   - containerPort: 443
     hostPort: 443
     protocol: TCP
-  # - containerPort: 6443
-  #   hostPort: 6443
-  #   protocol: TCP
+  - containerPort: 53
+    hostPort: 53
+    protocol: TCP
+  - containerPort: 53
+    hostPort: 53
+    protocol: UDP
 - role: worker
   kubeadmConfigPatches:
   - |

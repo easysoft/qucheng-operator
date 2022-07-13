@@ -1,6 +1,24 @@
+# apiVersion: qucheng.easycorp.io/v1beta1
+# kind: DbService
+# metadata:
+#   name: sample
+# spec:
+#   type: mysql
+---
 apiVersion: qucheng.easycorp.io/v1beta1
 kind: DbService
 metadata:
-  name: dbservice-sample
+  name: sample
 spec:
-  # TODO(user): Add fields here
+  account:
+    password:
+      value: password
+    user:
+      value: root
+  service:
+    name: sample-mysql
+    namespace: default
+    port: 3306
+  type: mysql
+---
+
