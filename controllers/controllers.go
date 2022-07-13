@@ -7,6 +7,7 @@
 package controllers
 
 import (
+	"github.com/easysoft/qucheng-operator/controllers/db"
 	"github.com/easysoft/qucheng-operator/controllers/dbservice"
 	"github.com/easysoft/qucheng-operator/controllers/globaldb"
 	"github.com/sirupsen/logrus"
@@ -19,6 +20,7 @@ var controllerAddFuncs []func(manager.Manager) error
 func init() {
 	controllerAddFuncs = append(controllerAddFuncs, globaldb.Add)
 	controllerAddFuncs = append(controllerAddFuncs, dbservice.Add)
+	controllerAddFuncs = append(controllerAddFuncs, db.Add)
 }
 
 func SetupWithManager(m manager.Manager) error {

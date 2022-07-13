@@ -3,4 +3,13 @@ kind: Db
 metadata:
   name: db-sample
 spec:
-  # TODO(user): Add fields here
+  dbName: db-sample
+  targetService: 
+    name: db-sample
+    namespace: cne-system
+    port: 3306
+  account:
+    user:
+      value: customuser
+    password:
+      value: custompassword

@@ -122,9 +122,9 @@ func (r *DbServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// }
 
 	if err := r.updateDbServiceStatus(dbsvc); err != nil {
-		return reconcile.Result{}, err
+		return reconcile.Result{RequeueAfter: minRequeueDuration}, err
 	}
-	return ctrl.Result{RequeueAfter: minRequeueDuration}, nil
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
