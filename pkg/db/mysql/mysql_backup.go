@@ -9,6 +9,7 @@ package mysql
 import (
 	"bytes"
 	"fmt"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -85,7 +86,7 @@ func (b *BackupAction) Run() error {
 		stderr.Read(errMessage)
 		b.errMessage = string(errMessage)
 	}
-	return err
+	return errors.Wrap(err, b.errMessage)
 }
 
 func (b *BackupAction) GenerateFullPath(path string) string {

@@ -3,7 +3,6 @@ package db
 import (
 	"context"
 	"fmt"
-	"github.com/apex/log"
 	quchengv1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
 	clientset "github.com/easysoft/qucheng-operator/pkg/client/clientset/versioned"
 	quickonv1binfs "github.com/easysoft/qucheng-operator/pkg/client/informers/externalversions/qucheng/v1beta1"
@@ -94,6 +93,7 @@ func (b *backupper) FindBackupDbs(namespace string, selector client.MatchingLabe
 }
 
 func (b *backupper) AddTask(namespace string, db *quchengv1beta1.Db) {
+	log := b.log
 	timeStamp := time.Now().Unix()
 	dbbName := fmt.Sprintf("%s-%d", db.Name, timeStamp)
 
@@ -125,21 +125,25 @@ func (b *backupper) AddTask(namespace string, db *quchengv1beta1.Db) {
 	}
 
 	b.tasks[dbb.Name] = dbb
-	b.log.Infoln("creat dbBackup success")
+	log.Infoln("creat dbBackup success")
 }
 
 func (b *backupper) WaitSync(ctx context.Context) error {
+	var err error
 	log := b.log
 	log.Info("start wait sync")
 	for {
 		select {
 		case <-time.After(time.Minute):
-			return errors.New("timed out waiting for restic repository to become ready")
+			err = errors.New("timed out waiting for restic repository to become ready")
+			goto END
 		case <-ctx.Done():
-			return errors.New("timed out waiting for restic repository to become ready")
+			err = errors.New("timed out waiting for restic repository to become ready")
+			goto END
 		case res := <-b.dbbChan:
 			if res.Status.Phase == quchengv1beta1.DbBackupPhasePhaseFailed {
-				return errors.Errorf("dbBackup failed: %s", res.Status.Message)
+				err = errors.Errorf("dbBackup failed: %s", res.Status.Message)
+				goto END
 			}
 
 			if _, ok := b.tasks[res.Name]; ok {
@@ -155,5 +159,5 @@ func (b *backupper) WaitSync(ctx context.Context) error {
 	}
 
 END:
-	return nil
+	return err
 }

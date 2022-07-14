@@ -88,6 +88,9 @@ func main() {
 	if err = qucheng.NewDbBackupReconciler(s.mgr.GetClient(), s.mgr.GetScheme(), s.logger).SetupWithManager(s.mgr); err != nil {
 		setupLog.Error(err, "init dbBackup reconciler failed")
 	}
+	if err = qucheng.NewDbRestoreReconciler(s.mgr.GetClient(), s.mgr.GetScheme(), s.logger).SetupWithManager(s.mgr); err != nil {
+		setupLog.Error(err, "init dbRestore reconciler failed")
+	}
 
 	controllers := make(map[string]base.Controller)
 	b := qucheng.NewBackupController(s.ctx, s.namespace, scheme, s.quickonInf.Qucheng().V1beta1().Backups(), s.mgr.GetClient(), s.quickonClient, s.veleroClient,

@@ -1,0 +1,20 @@
+# permissions for end users to view dbrestores.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: dbrestore-viewer-role
+rules:
+- apiGroups:
+  - qucheng.easycorp.io
+  resources:
+  - dbrestores
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - qucheng.easycorp.io
+  resources:
+  - dbrestores/status
+  verbs:
+  - get

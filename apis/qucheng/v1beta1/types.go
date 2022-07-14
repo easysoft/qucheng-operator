@@ -59,6 +59,7 @@ const (
 const (
 	RestorePhaseNew           RestorePhase = "New"
 	RestorePhaseProcess       RestorePhase = "Processing"
+	RestorePhaseFailed        RestorePhase = "Failed"
 	RestorePhaseExecuteFailed RestorePhase = "ExecuteFailed"
 
 	RestorePhaseDownloading     RestorePhase = "Downloading"

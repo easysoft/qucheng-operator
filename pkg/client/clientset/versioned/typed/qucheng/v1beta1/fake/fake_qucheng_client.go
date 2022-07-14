@@ -39,6 +39,10 @@ func (c *FakeQuchengV1beta1) DbBackups(namespace string) v1beta1.DbBackupInterfa
 	return &FakeDbBackups{c, namespace}
 }
 
+func (c *FakeQuchengV1beta1) DbRestores(namespace string) v1beta1.DbRestoreInterface {
+	return &FakeDbRestores{c, namespace}
+}
+
 func (c *FakeQuchengV1beta1) DbServices(namespace string) v1beta1.DbServiceInterface {
 	return &FakeDbServices{c, namespace}
 }

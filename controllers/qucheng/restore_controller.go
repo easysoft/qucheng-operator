@@ -8,6 +8,12 @@ package qucheng
 
 import (
 	"context"
+	"github.com/easysoft/qucheng-operator/pkg/db"
+	"github.com/pkg/errors"
+	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/clock"
 
 	"github.com/easysoft/qucheng-operator/pkg/volume"
 	veleroclientset "github.com/vmware-tanzu/velero/pkg/generated/clientset/versioned"
@@ -19,8 +25,6 @@ import (
 	clientset "github.com/easysoft/qucheng-operator/pkg/client/clientset/versioned"
 	quchenginformers "github.com/easysoft/qucheng-operator/pkg/client/informers/externalversions/qucheng/v1beta1"
 	quchenglister "github.com/easysoft/qucheng-operator/pkg/client/listers/qucheng/v1beta1"
-	"github.com/easysoft/qucheng-operator/pkg/db/mysql"
-	"github.com/easysoft/qucheng-operator/pkg/storage"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
@@ -74,6 +78,7 @@ type RestoreController struct {
 	veleroInfs    veleroinformers.SharedInformerFactory
 	kbClient      client.Client
 	schema        *runtime.Scheme
+	clock         clock.Clock
 	logger        logrus.FieldLogger
 }
 
@@ -92,6 +97,7 @@ func NewRestoreController(ctx context.Context, namespace string, schema *runtime
 		clients:           clientset,
 		veleroClients:     veleroClientset,
 		veleroInfs:        veleroInfs,
+		clock:             clock.RealClock{},
 		logger:            logger,
 	}
 
@@ -139,109 +145,140 @@ func (c *RestoreController) process(key string) error {
 	}
 
 	log := c.Logger.WithFields(logrus.Fields{"name": name, "namespace": ns})
-	origin, err := c.lister.Restores(ns).Get(name)
+	restore, err := c.lister.Restores(ns).Get(name)
 	if err != nil {
 		log.WithError(err).Error("get backup field")
 		return err
 	}
 
-	if origin.Status.Phase != "" && origin.Status.Phase != quchengv1beta1.RestorePhaseNew {
-		log.Infoln("restore is not new, skip")
+	if restore.Status.Phase != "" && restore.Status.Phase != quchengv1beta1.RestorePhaseNew {
+		log.Debug("restore is not new, skip")
 		return nil
 	}
 
-	request := origin.DeepCopy()
-	request.Status.Phase = quchengv1beta1.RestorePhaseProcess
-	if err = c.kbClient.Status().Update(context.TODO(), request); err != nil {
+	restore.Status.Phase = quchengv1beta1.RestorePhaseProcess
+	if err = c.kbClient.Status().Update(context.TODO(), restore); err != nil {
 		log.WithError(err).Error("update status failed")
 		return err
 	}
-	log.WithField("phase", request.Status.Phase).Infoln("updated status")
+	log.WithField("phase", restore.Status.Phase).Infoln("updated status")
 
 	var backup quchengv1beta1.Backup
-	err = c.kbClient.Get(context.TODO(), client.ObjectKey{Namespace: origin.Namespace, Name: origin.Spec.BackupName}, &backup)
+	err = c.kbClient.Get(context.TODO(), client.ObjectKey{Namespace: restore.Namespace, Name: restore.Spec.BackupName}, &backup)
 	if err != nil {
-		log.WithError(err).Error("get backup resource failed")
-		return err
+		return c.updateStatusToFailed(c.ctx, restore, err, "get target backup failed", log)
 	}
 	log.Infoln("got backup", backup.Spec, backup.Status)
-	log.Infof("find %d resources need for restore", len(backup.Status.Archives))
 
 	ctx, cannelFunc := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cannelFunc()
 
-	for _, archive := range backup.Status.Archives {
-		// continue
-		var db quchengv1beta1.Db
-		store := storage.NewFileStorage()
-
-		log.Infoln("find archive:", archive.Path)
-		err = c.kbClient.Get(context.TODO(), client.ObjectKey{Namespace: backup.Namespace, Name: archive.DbRef.Name}, &db)
-		if err != nil {
-			log.WithError(err).Errorf("find db %s failed", archive.DbRef.Name)
-			return err
-		}
-
-		targetFile, err := store.PullBackup(archive.Path)
-		if err != nil {
-			log.WithError(err).Error("pull backup file failed")
-			request.Status.Phase = quchengv1beta1.RestorePhaseDownloadFailure
-			request.Status.Reason = "pull backup file failed"
-			_ = c.kbClient.Status().Update(context.TODO(), request)
-			log.WithFields(logrus.Fields{
-				"phase": request.Status.Phase, "reason": request.Status.Reason,
-			}).Info("update status to failed")
-			return err
-		}
-		log.Infof("download restore file %s", targetFile)
-
-		p := mysql.NewParser(c.kbClient, &db, log)
-		access, err := p.ParseAccessInfo()
-		if err != nil {
-			log.WithError(err).Error("parse db access info failed")
-			return err
-		}
-
-		log.Infoln("start mysql restore")
-		restoreReq := mysql.NewRestoreRequest(access, db.Spec.DbName, targetFile)
-		err = restoreReq.Run()
-		if err != nil {
-			log.WithError(err).Error("execute mysql restore failed")
-			request.Status.Phase = quchengv1beta1.RestorePhaseExecuteFailed
-			request.Status.Reason = restoreReq.Errors()
-			_ = c.kbClient.Status().Update(context.TODO(), request)
-			return err
-		}
-
-		log.Infof("restore %s success", archive.Path)
+	dbrestorer, err := db.NewRestorer(ctx, restore, c.schema, c.kbClient, c.clients, log)
+	if err != nil {
+		return c.updateStatusToFailed(ctx, restore, err, "init db restorer failed", log)
 	}
 
-	volumeRestorer, err := volume.NewRestorer(ctx, request, c.schema, c.veleroClients, c.kbClient, c.veleroInfs, c.logger)
+	dbbackups, err := dbrestorer.FindDbBackupList(c.namespace)
 	if err != nil {
-		return err
+		return c.updateStatusToFailed(ctx, restore, err, "find dbbackups failed", log)
+	}
+
+	for _, dbb := range dbbackups.Items {
+		dbrestorer.AddTask(c.namespace, &dbb)
+	}
+
+	err = dbrestorer.WaitSync(ctx)
+	if err != nil {
+		log.WithError(err).Error("some tasks failed")
+		return c.updateStatusToFailed(ctx, restore, err, "db restore task failed", log)
+	}
+
+	volumeRestorer, err := volume.NewRestorer(ctx, restore, c.schema, c.veleroClients, c.kbClient, c.veleroInfs, c.logger)
+	if err != nil {
+		return c.updateStatusToFailed(ctx, restore, err, "init volume restorer failed", log)
 	}
 	pvbList, err := volumeRestorer.FindPodVolumeBackups(c.namespace)
 	if err != nil {
-		return err
+		return c.updateStatusToFailed(ctx, restore, err, "find volumes for backup failed", log)
 	}
 
-	for _, pvb := range pvbList.Items {
-		volumeRestorer.AddTask(c.namespace, &pvb)
+	currPvbList, err := c.rebuildPodPvcRelation(pvbList, backup.Spec.Namespace, backup.Spec.Selector)
+	if err != nil {
+		return c.updateStatusToFailed(ctx, restore, err, "rebuild pvc and pod relation failed", log)
+	}
+
+	for _, pi := range currPvbList {
+		volumeRestorer.AddTask(c.namespace, &pi.pvb, pi.podInfo)
 	}
 
 	if err = volumeRestorer.WaitSync(c.ctx); err != nil {
-		return err
+		return c.updateStatusToFailed(ctx, restore, err, "volume restore task failed", log)
 	}
 
 	log.Infoln("restore completed")
-	request.Status.Phase = quchengv1beta1.RestorePhaseCompleted
-	return c.kbClient.Status().Update(context.TODO(), request)
+	restore.Status.Phase = quchengv1beta1.RestorePhaseCompleted
+	return c.kbClient.Status().Update(context.TODO(), restore)
 }
 
-func (c *RestoreController) filterDbList(namespace string, selector client.MatchingLabels) (*quchengv1beta1.DbList, error) {
-	list := quchengv1beta1.DbList{}
+func (c *RestoreController) updateStatusToFailed(ctx context.Context, resotre *quchengv1beta1.Restore, err error, msg string, log logrus.FieldLogger) error {
+	original := resotre.DeepCopy()
+	resotre.Status.Phase = quchengv1beta1.RestorePhaseFailed
+	resotre.Status.Message = errors.WithMessage(err, msg).Error()
+	resotre.Status.CompletionTimestamp = &metav1.Time{Time: c.clock.Now()}
 
-	ns := client.InNamespace(namespace)
-	err := c.kbClient.List(context.TODO(), &list, ns, selector)
-	return &list, err
+	log.WithError(err).Error(msg)
+
+	if err = c.kbClient.Status().Patch(ctx, resotre, client.MergeFrom(original)); err != nil {
+		log.WithError(err).Error("error updating Restore status")
+		return err
+	}
+
+	return err
+}
+
+func (c *RestoreController) rebuildPodPvcRelation(pvblist *velerov1.PodVolumeBackupList, namespace string, selector client.MatchingLabels) (map[string]*pvbInfo, error) {
+	var podList v1.PodList
+	if err := c.kbClient.List(context.TODO(), &podList, client.InNamespace(namespace), selector); err != nil {
+		return nil, err
+	}
+
+	var pvcMap = make(map[string]*pvbInfo)
+	for _, pvb := range pvblist.Items {
+		pvcName := pvb.Labels[velerov1.PVCUIDLabel]
+		pvcMap[pvcName] = &pvbInfo{
+			pvb: pvb, pvcName: pvcName,
+			podInfo: pvb.Spec.Pod, confirmed: false,
+		}
+	}
+
+	for _, pod := range podList.Items {
+		for _, vol := range pod.Spec.Volumes {
+			if vol.PersistentVolumeClaim != nil {
+				pvcName := vol.PersistentVolumeClaim.ClaimName
+				if pi, ok := pvcMap[pvcName]; ok {
+					if pi.confirmed {
+						continue
+					}
+					if pi.podInfo.Name != pod.Name {
+						pi.podInfo = v1.ObjectReference{
+							Kind:      "Pod",
+							Namespace: namespace,
+							Name:      pod.Name,
+							UID:       pod.UID,
+						}
+					}
+					pi.confirmed = true
+				}
+			}
+		}
+	}
+
+	return pvcMap, nil
+}
+
+type pvbInfo struct {
+	pvb       velerov1.PodVolumeBackup
+	pvcName   string
+	podInfo   v1.ObjectReference
+	confirmed bool
 }

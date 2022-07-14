@@ -5,29 +5,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
-  name: dbbackups.qucheng.easycorp.io
+  name: dbrestores.qucheng.easycorp.io
 spec:
   group: qucheng.easycorp.io
   names:
-    kind: DbBackup
-    listKind: DbBackupList
-    plural: dbbackups
-    singular: dbbackup
+    kind: DbRestore
+    listKind: DbRestoreList
+    plural: dbrestores
+    singular: dbrestore
   scope: Namespaced
   versions:
-  - additionalPrinterColumns:
-    - description: DbBackup status such as New/InProgress
-      jsonPath: .status.phase
-      name: Status
-      type: string
-    - description: backup file size
-      jsonPath: .status.size
-      name: Size
-      type: string
-    name: v1beta1
+  - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: DbBackup is the Schema for the dbbackups API
+        description: DbRestore is the Schema for the dbrestores API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -42,7 +33,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: DbBackupSpec defines the desired state of DbBackup
+            description: DbRestoreSpec defines the desired state of DbRestore
             properties:
               db:
                 description: 'ObjectReference contains enough information to let you
@@ -102,32 +93,26 @@ spec:
                     description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
                     type: string
                 type: object
+              path:
+                type: string
             required:
             - db
+            - path
             type: object
           status:
-            description: DbBackupStatus defines the observed state of DbBackup
+            description: DbRestoreStatus defines the observed state of DbRestore
             properties:
               completionTimestamp:
                 format: date-time
                 type: string
               message:
                 type: string
-              path:
-                type: string
               phase:
                 type: string
-              size:
-                anyOf:
-                - type: integer
-                - type: string
-                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                x-kubernetes-int-or-string: true
               startTimestamp:
                 format: date-time
                 type: string
             required:
-            - path
             - phase
             type: object
         type: object

@@ -1,0 +1,24 @@
+# permissions for end users to edit dbrestores.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: dbrestore-editor-role
+rules:
+- apiGroups:
+  - qucheng.easycorp.io
+  resources:
+  - dbrestores
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - qucheng.easycorp.io
+  resources:
+  - dbrestores/status
+  verbs:
+  - get

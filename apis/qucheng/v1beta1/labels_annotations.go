@@ -16,3 +16,7 @@ const (
 const (
 	SelectorReleaseKey = "release"
 )
+
+const (
+	PvcBackupExcludeAnnotation = "easycorp.io/pvc_backup_exclude"
+)

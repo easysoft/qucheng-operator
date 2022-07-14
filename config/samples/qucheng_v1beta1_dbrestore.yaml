@@ -1,0 +1,6 @@
+apiVersion: qucheng.easycorp.io/v1beta1
+kind: DbRestore
+metadata:
+  name: dbrestore-sample
+spec:
+  # TODO(user): Add fields here

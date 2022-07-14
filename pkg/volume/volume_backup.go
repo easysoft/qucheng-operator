@@ -129,11 +129,30 @@ func NewBackupper(ctx context.Context, backup *quchengv1beta1.Backup, schema *ru
 	return b, nil
 }
 
+type pvcInfo struct {
+	pvb       velerov1.PodVolumeBackup
+	pvcName   string
+	podInfo   v1.ObjectReference
+	confirmed bool
+}
+
 func (b *backupper) FindBackupPvcs(namespace string, selector client.MatchingLabels) ([]PvcBackup, error) {
 	var result = make([]PvcBackup, 0)
 	podList := v1.PodList{}
 	if err := b.kbClient.List(context.TODO(), &podList, client.InNamespace(namespace), selector); err != nil {
 		return result, err
+	}
+
+	var backupPvcMap = make(map[string]*v1.PersistentVolumeClaim)
+	pvcList := v1.PersistentVolumeClaimList{}
+	if err := b.kbClient.List(context.TODO(), &pvcList, client.InNamespace(namespace), selector); err != nil {
+		return result, err
+	}
+	for _, pvc := range pvcList.Items {
+		if pvc.Annotations[quchengv1beta1.PvcBackupExcludeAnnotation] == "true" {
+			continue
+		}
+		backupPvcMap[pvc.Name] = &pvc
 	}
 
 	var pvcMap = make(map[string]PvcBackup)
@@ -142,8 +161,10 @@ func (b *backupper) FindBackupPvcs(namespace string, selector client.MatchingLab
 		for _, volume := range pod.Spec.Volumes {
 			if volume.PersistentVolumeClaim != nil {
 				pvcName := volume.PersistentVolumeClaim.ClaimName
+				if _, ok := backupPvcMap[pvcName]; !ok {
+					continue
+				}
 				if _, ok := pvcMap[pvcName]; !ok {
-					// todo: exclude db pvcs
 					pvcMap[pvcName] = PvcBackup{
 						Pod:        pod,
 						VolumeName: volume.Name,
@@ -262,15 +283,15 @@ func (b *backupper) WaitSync(ctx context.Context) error {
 		select {
 		case <-time.After(time.Minute):
 			err = errors.New("timed out waiting for restic repository to become ready")
-			goto ERROR
+			goto END
 		case <-ctx.Done():
 			err = errors.New("timed out waiting for restic repository to become ready")
-			goto ERROR
+			goto END
 		case res := <-b.pvbChan:
 			log.Debugf("receive pvb %s with status %s", res.Name, res.Status.Phase)
 			if res.Status.Phase == velerov1.PodVolumeBackupPhaseFailed {
 				err = errors.Errorf("podVolumeBackup failed: %s", res.Status.Message)
-				goto ERROR
+				goto END
 			}
 
 			if _, ok := b.tasks[res.Name]; ok {
@@ -285,11 +306,8 @@ func (b *backupper) WaitSync(ctx context.Context) error {
 		}
 	}
 
-ERROR:
-	return err
-
 END:
-	return nil
+	return err
 }
 
 func (b *backupper) getRepoChan(name string) chan *velerov1.ResticRepository {

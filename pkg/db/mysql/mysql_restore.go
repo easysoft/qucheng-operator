@@ -9,6 +9,7 @@ package mysql
 import (
 	"bytes"
 	"fmt"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -62,7 +63,7 @@ func (r *RestoreAction) Run() error {
 		stderr.Read(errMessage)
 		r.errMessage = string(errMessage)
 	}
-	return err
+	return errors.Wrap(err, r.errMessage)
 }
 
 func (r *RestoreAction) Errors() string {

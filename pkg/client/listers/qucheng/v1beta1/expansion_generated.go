@@ -41,6 +41,14 @@ type DbBackupListerExpansion interface{}
 // DbBackupNamespaceLister.
 type DbBackupNamespaceListerExpansion interface{}
 
+// DbRestoreListerExpansion allows custom methods to be added to
+// DbRestoreLister.
+type DbRestoreListerExpansion interface{}
+
+// DbRestoreNamespaceListerExpansion allows custom methods to be added to
+// DbRestoreNamespaceLister.
+type DbRestoreNamespaceListerExpansion interface{}
+
 // DbServiceListerExpansion allows custom methods to be added to
 // DbServiceLister.
 type DbServiceListerExpansion interface{}

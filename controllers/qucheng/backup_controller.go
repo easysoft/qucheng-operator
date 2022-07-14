@@ -107,7 +107,7 @@ func (c *BackupController) process(key string) error {
 		return err
 	}
 
-	log := c.Logger.WithFields(logrus.Fields{"name": name, "namespace": ns})
+	log := c.Logger.WithFields(logrus.Fields{"backup": name, "namespace": ns})
 
 	backup, err := c.lister.Backups(ns).Get(name)
 	if err != nil {

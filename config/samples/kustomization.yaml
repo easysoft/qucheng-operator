@@ -6,4 +6,5 @@ resources:
 - qucheng_v1beta1_restore.yaml
 - qucheng_v1beta1_globaldb.yaml
 - qucheng_v1beta1_dbbackup.yaml
+- qucheng_v1beta1_dbrestore.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

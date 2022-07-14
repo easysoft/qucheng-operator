@@ -9,7 +9,7 @@ package volume
 import (
 	"context"
 	"fmt"
-	"sync"
+	v1 "k8s.io/api/core/v1"
 	"time"
 
 	quchengv1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
@@ -29,7 +29,7 @@ import (
 
 type Restorer interface {
 	FindPodVolumeBackups(namespace string) (*velerov1.PodVolumeBackupList, error)
-	AddTask(namespace string, pvb *velerov1.PodVolumeBackup)
+	AddTask(namespace string, pvb *velerov1.PodVolumeBackup, pod v1.ObjectReference)
 	WaitSync(ctx context.Context) error
 }
 
@@ -40,8 +40,6 @@ type restorer struct {
 	veleroClients veleroclientset.Interface
 	log           logrus.FieldLogger
 	tasks         map[string]velerov1.PodVolumeRestore
-	repoChans     map[string]chan *velerov1.ResticRepository
-	repoLocks     map[string]*sync.Mutex
 	pvrChan       chan *velerov1.PodVolumeRestore
 }
 
@@ -102,7 +100,7 @@ func (r *restorer) FindPodVolumeBackups(namespace string) (*velerov1.PodVolumeBa
 	return &pvbList, nil
 }
 
-func (r *restorer) AddTask(namespace string, pvb *velerov1.PodVolumeBackup) {
+func (r *restorer) AddTask(namespace string, pvb *velerov1.PodVolumeBackup, pod v1.ObjectReference) {
 	timeStamp := time.Now().Unix()
 	pvbName := fmt.Sprintf("%s-%s-%d", r.restore.Name, pvb.Status.SnapshotID, timeStamp)
 	log := r.log
@@ -117,7 +115,7 @@ func (r *restorer) AddTask(namespace string, pvb *velerov1.PodVolumeBackup) {
 			},
 		},
 		Spec: velerov1.PodVolumeRestoreSpec{
-			Pod:                   pvb.Spec.Pod,
+			Pod:                   pod,
 			Volume:                pvb.Spec.Volume,
 			BackupStorageLocation: pvb.Spec.BackupStorageLocation,
 			RepoIdentifier:        pvb.Spec.RepoIdentifier,
@@ -139,17 +137,21 @@ func (r *restorer) AddTask(namespace string, pvb *velerov1.PodVolumeBackup) {
 }
 
 func (r *restorer) WaitSync(ctx context.Context) error {
+	var err error
 	log := r.log
 	log.Info("start wait sync")
 	for {
 		select {
 		case <-time.After(time.Minute):
-			return errors.New("timed out waiting for restic repository to become ready")
+			err = errors.New("timed out waiting for restic repository to become ready")
+			goto END
 		case <-ctx.Done():
-			return errors.New("timed out waiting for restic repository to become ready")
+			err = errors.New("timed out waiting for restic repository to become ready")
+			goto END
 		case res := <-r.pvrChan:
 			if res.Status.Phase == velerov1.PodVolumeRestorePhaseFailed {
-				return errors.Errorf("podVolumeRestore failed: %s", res.Status.Message)
+				err = errors.Errorf("podVolumeRestore failed: %s", res.Status.Message)
+				goto END
 			}
 
 			if _, ok := r.tasks[res.Name]; ok {
@@ -165,5 +167,5 @@ func (r *restorer) WaitSync(ctx context.Context) error {
 	}
 
 END:
-	return nil
+	return err
 }

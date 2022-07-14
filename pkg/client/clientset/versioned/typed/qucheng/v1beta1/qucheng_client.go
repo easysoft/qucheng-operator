@@ -28,6 +28,7 @@ type QuchengV1beta1Interface interface {
 	BackupsGetter
 	DbsGetter
 	DbBackupsGetter
+	DbRestoresGetter
 	DbServicesGetter
 	GlobalDBsGetter
 	RestoresGetter
@@ -48,6 +49,10 @@ func (c *QuchengV1beta1Client) Dbs(namespace string) DbInterface {
 
 func (c *QuchengV1beta1Client) DbBackups(namespace string) DbBackupInterface {
 	return newDbBackups(c, namespace)
+}
+
+func (c *QuchengV1beta1Client) DbRestores(namespace string) DbRestoreInterface {
+	return newDbRestores(c, namespace)
 }
 
 func (c *QuchengV1beta1Client) DbServices(namespace string) DbServiceInterface {

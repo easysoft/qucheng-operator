@@ -117,13 +117,14 @@ func (r *DbBackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	dbb.Status.Phase = quchengv1beta1.DbBackupPhasePhaseCompleted
+	dbb.Status.CompletionTimestamp = &metav1.Time{Time: r.clock.Now()}
 	dbb.Status.Path = path
 	dbb.Status.Size = resource.NewQuantity(size, resource.BinarySI)
 	if err := r.Status().Update(ctx, &dbb); err != nil {
 		log.WithError(err).Error("error updating DbBackup status")
 		return ctrl.Result{}, err
 	}
-	log.WithFields(logrus.Fields{"phase": dbb.Status.Phase}).Info("update status to completed")
+	log.WithFields(logrus.Fields{"phase": dbb.Status.Phase}).Info("update DbBackup status to completed")
 	return ctrl.Result{}, nil
 }
 
