@@ -46,10 +46,14 @@ jobs:
           kubectl apply -f hack/deploy/deploy.yaml
       - name: Install mysql
         run: |
-          helm repo add bitnami https://charts.bitnami.com/bitnami
-          helm install test bitnami/mysql --set auth.rootPassword=password --set auth.database=test
+          helm repo add install https://hub.qucheng.com/chartrepo/test
+          helm install test install/qucheng
+      - name: Sleep for 60 seconds
+        uses: jakejarvis/wait-action@master
+        with:
+          time: '60s'
       - name: Check Status
         run: |
-          kubectl apply -f config/samples/qucheng_v1beta1_globaldb.yaml
           kubectl get pods -n cne-system
-          kubectl get globaldb
+          kubectl get pods
+          kubectl get dbsvc,db -o wide

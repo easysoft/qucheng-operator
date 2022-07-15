@@ -57,8 +57,8 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	if err != nil {
 		return err
 	}
-	// Watch for changes to DbService
-	err = c.Watch(&source.Kind{Type: &quchengv1beta1.DbService{}}, &handler.EnqueueRequestForObject{})
+	// Watch for changes to Db
+	err = c.Watch(&source.Kind{Type: &quchengv1beta1.Db{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
@@ -104,7 +104,11 @@ func (r *DbReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 
 	// fetch dbsvc
 	dbsvc := &quchengv1beta1.DbService{}
-	err = r.Get(context.TODO(), types.NamespacedName{Name: db.Spec.TargetService.Name, Namespace: db.Spec.TargetService.Namespace}, dbsvc)
+	dbsvcNS := db.Spec.TargetService.Namespace
+	if len(dbsvcNS) == 0 {
+		dbsvcNS = db.Namespace
+	}
+	err = r.Get(context.TODO(), types.NamespacedName{Name: db.Spec.TargetService.Name, Namespace: dbsvcNS}, dbsvc)
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return reconcile.Result{}, fmt.Errorf("failed to get dbsvc %s: %v", db.Name, err)
@@ -135,6 +139,7 @@ func (r *DbReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 		ChildName: db.Spec.DbName,
 		ChildUser: db.Spec.Account.User.Value,
 		ChildPass: db.Spec.Account.Password.Value,
+		Type:      string(dbsvc.Spec.Type),
 	}
 
 	if err := r.updateDbStatus(db, dbmeta); err != nil {
