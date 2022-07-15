@@ -9,6 +9,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -30,7 +31,8 @@ import (
 )
 
 const (
-	controllerName = "db-controller"
+	controllerName     = "db-controller"
+	minRequeueDuration = time.Second * 5
 )
 
 func Add(mgr manager.Manager) error {
@@ -138,7 +140,7 @@ func (r *DbReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 	if err := r.updateDbStatus(db, dbmeta); err != nil {
 		return reconcile.Result{}, err
 	}
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: minRequeueDuration}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

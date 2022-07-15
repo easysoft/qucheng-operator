@@ -89,7 +89,7 @@ type DbServiceReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
 func (r *DbServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	r.Logger.Info("start reconcile for dbsvc")
+	r.Logger.Infof("start reconcile for dbsvc: %s", req.Name)
 	// fetch dbsvc
 	dbsvc := &quchengv1beta1.DbService{}
 	err := r.Get(ctx, req.NamespacedName, dbsvc)
@@ -122,9 +122,9 @@ func (r *DbServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// }
 
 	if err := r.updateDbServiceStatus(dbsvc); err != nil {
-		return reconcile.Result{RequeueAfter: minRequeueDuration}, err
+		return reconcile.Result{}, err
 	}
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: minRequeueDuration}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

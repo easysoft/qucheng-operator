@@ -9,11 +9,12 @@ package mysql
 import (
 	"bytes"
 	"fmt"
-	"github.com/pkg/errors"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/easysoft/qucheng-operator/pkg/db"
 )
