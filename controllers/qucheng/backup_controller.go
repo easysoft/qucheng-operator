@@ -143,15 +143,17 @@ func (c *BackupController) process(key string) error {
 	}
 	log.Infof("find %d dbs to backup", len(dbs.Items))
 
-	for _, d := range dbs.Items {
-		dbBackupper.AddTask(c.namespace, &d)
-	}
+	if len(dbs.Items) > 0 {
+		for _, d := range dbs.Items {
+			dbBackupper.AddTask(c.namespace, &d)
+		}
 
-	err = dbBackupper.WaitSync(ctx)
-	if err != nil {
-		return c.updateStatusToFailed(ctx, backup, err, "not all tasks complete with success", log)
+		err = dbBackupper.WaitSync(ctx)
+		if err != nil {
+			return c.updateStatusToFailed(ctx, backup, err, "not all tasks complete with success", log)
+		}
+		log.Infoln("all of dbs was backed up")
 	}
-	log.Infoln("all of dbs was backed up")
 
 	bslName := "minio"
 	backupper, err := volume.NewBackupper(ctx, backup, c.schema, c.veleroClients, c.kbClient, log, bslName)
@@ -164,20 +166,22 @@ func (c *BackupController) process(key string) error {
 		return c.updateStatusToFailed(ctx, backup, err, "lookup backup pvc list failed", log)
 	}
 
-	for _, pvcInfo := range backupPvclist {
-		resticRepo, err := backupper.EnsureRepo(c.ctx, pvcInfo, c.namespace)
-		if err != nil {
-			return c.updateStatusToFailed(ctx, backup, err, "ensure repo failed", log.WithField("pvc", pvcInfo.PvcName))
+	if len(backupPvclist) > 0 {
+		for _, pvcInfo := range backupPvclist {
+			resticRepo, err := backupper.EnsureRepo(c.ctx, pvcInfo, c.namespace)
+			if err != nil {
+				return c.updateStatusToFailed(ctx, backup, err, "ensure repo failed", log.WithField("pvc", pvcInfo.PvcName))
+			}
+			backupper.AddTask(c.namespace, resticRepo, pvcInfo)
 		}
-		backupper.AddTask(c.namespace, resticRepo, pvcInfo)
-	}
 
-	err = backupper.WaitSync(c.ctx)
-	if err != nil {
-		return c.updateStatusToFailed(ctx, backup, err, "not all tasks complete with success", log)
-	}
+		err = backupper.WaitSync(c.ctx)
+		if err != nil {
+			return c.updateStatusToFailed(ctx, backup, err, "not all tasks complete with success", log)
+		}
 
-	log.Infoln("all of volumes was backed up")
+		log.Infoln("all of volumes was backed up")
+	}
 
 	backup.Status.Phase = quchengv1beta1.BackupPhaseCompleted
 	backup.Status.CompletionTimestamp = &metav1.Time{Time: c.clock.Now()}

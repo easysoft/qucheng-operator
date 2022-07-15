@@ -183,14 +183,16 @@ func (c *RestoreController) process(key string) error {
 		return c.updateStatusToFailed(ctx, restore, err, "find dbbackups failed", log)
 	}
 
-	for _, dbb := range dbbackups.Items {
-		dbrestorer.AddTask(c.namespace, &dbb)
-	}
+	if len(dbbackups.Items) > 0 {
+		for _, dbb := range dbbackups.Items {
+			dbrestorer.AddTask(c.namespace, &dbb)
+		}
 
-	err = dbrestorer.WaitSync(ctx)
-	if err != nil {
-		log.WithError(err).Error("some tasks failed")
-		return c.updateStatusToFailed(ctx, restore, err, "db restore task failed", log)
+		err = dbrestorer.WaitSync(ctx)
+		if err != nil {
+			log.WithError(err).Error("some tasks failed")
+			return c.updateStatusToFailed(ctx, restore, err, "db restore task failed", log)
+		}
 	}
 
 	volumeRestorer, err := volume.NewRestorer(ctx, restore, c.schema, c.veleroClients, c.kbClient, c.veleroInfs, c.logger)
@@ -207,12 +209,14 @@ func (c *RestoreController) process(key string) error {
 		return c.updateStatusToFailed(ctx, restore, err, "rebuild pvc and pod relation failed", log)
 	}
 
-	for _, pi := range currPvbList {
-		volumeRestorer.AddTask(c.namespace, &pi.pvb, pi.podInfo)
-	}
+	if len(currPvbList) > 0 {
+		for _, pi := range currPvbList {
+			volumeRestorer.AddTask(c.namespace, &pi.pvb, pi.podInfo)
+		}
 
-	if err = volumeRestorer.WaitSync(c.ctx); err != nil {
-		return c.updateStatusToFailed(ctx, restore, err, "volume restore task failed", log)
+		if err = volumeRestorer.WaitSync(c.ctx); err != nil {
+			return c.updateStatusToFailed(ctx, restore, err, "volume restore task failed", log)
+		}
 	}
 
 	log.Infoln("restore completed")

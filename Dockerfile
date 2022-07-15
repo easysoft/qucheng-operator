@@ -24,8 +24,6 @@ COPY controllers/ controllers/
 # Build
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o cne-operator cmd/main.go
 
-RUN upx -q cne-operator
-
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM hub.qucheng.com/app/mysql:5.7.37-debian-10 as mysql57
@@ -38,6 +36,7 @@ COPY --from=mysql57 /opt/bitnami/mysql/bin/mysqldump /bin/mysqldump
 COPY --from=mysql57 /lib/x86_64-linux-gnu/libncurses.so.6 /lib/x86_64-linux-gnu/libncurses.so.6
 COPY --from=mysql57 /usr/lib/x86_64-linux-gnu/libatomic.so.1 /usr/lib/x86_64-linux-gnu/libatomic.so.1
 
+COPY --from=hub.qucheng.com/third-party/restic:0.13.1 /usr/bin/restic /usr/bin/restic
 COPY --from=builder /workspace/cne-operator .
 
 USER 65534:65534
