@@ -917,7 +917,7 @@ spec:
         control-plane: controller-manager
     spec:
       containers:
-      - image: hub.qucheng.com/platform/cne-operator:0.0.1-20220715-01a429e
+      - image: hub.qucheng.com/platform/cne-operator:0.0.1-20220715-cab48dc
         imagePullPolicy: Always
         livenessProbe:
           httpGet:

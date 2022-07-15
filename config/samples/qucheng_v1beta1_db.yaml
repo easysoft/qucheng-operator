@@ -1,15 +1,38 @@
+# apiVersion: qucheng.easycorp.io/v1beta1
+# kind: Db
+# metadata:
+#   name: db-sample
+# spec:
+#   dbName: db-sample
+#   targetService: 
+#     name: db-sample
+#     namespace: cne-system
+#     port: 3306
+#   account:
+#     user:
+#       value: customuser
+#     password:
+#       value: custompassword
+---
 apiVersion: qucheng.easycorp.io/v1beta1
 kind: Db
 metadata:
-  name: db-sample
+  annotations:
+    meta.helm.sh/release-name: qucheng
+    meta.helm.sh/release-namespace: default
+  labels:
+    app: mysql
+    app.kubernetes.io/managed-by: Helm
+    chart: mysql-0.2.4
+    release: qucheng
+  name: qucheng-mysql-qucheng2
+  namespace: default
 spec:
-  dbName: db-sample
-  targetService: 
-    name: db-sample
-    namespace: cne-system
-    port: 3306
   account:
-    user:
-      value: customuser
     password:
       value: custompassword
+    user:
+      value: customuser
+  dbName: customdb
+  targetService:
+    name: qucheng-mysql

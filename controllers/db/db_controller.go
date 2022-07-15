@@ -224,6 +224,16 @@ func (r *DbReconciler) updateDbStatus(db *quchengv1beta1.Db, dbmeta util.DBMeta)
 	} else {
 		dbstatus.Address = dbmeta.Address
 		dbstatus.Network = true
+		if !dbtool.CheckExist() {
+			r.Logger.Debugf("dbsvc not foud db %s", dbmeta.ChildName)
+			if err := dbtool.CreateDB(); err != nil {
+				r.EventRecorder.Eventf(db, corev1.EventTypeWarning, "CreateDBFailed", "CreateDBFailed %v", err)
+				db.Status = dbstatus
+				return r.Status().Update(context.TODO(), db)
+			} else {
+				r.EventRecorder.Eventf(db, corev1.EventTypeNormal, "CreateDBSuccess", "CreateDBSuccess %v", dbmeta.ChildName)
+			}
+		}
 		if err := dbtool.CheckChildAuth(); err != nil {
 			dbstatus.Auth = false
 			dbstatus.Ready = false
