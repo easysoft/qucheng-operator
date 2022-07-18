@@ -9,6 +9,8 @@ package main
 import (
 	"context"
 	"flag"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"os"
 	"time"
@@ -78,6 +80,11 @@ func main() {
 		s.cancelFunc()
 		setupLog.Error(err, "init server failed")
 		os.Exit(2)
+	}
+
+	if err = ensureDefaultBackupStorageLocation(s.veleroClient); err != nil {
+		setupLog.Error(err, "init default bsl failed")
+		os.Exit(3)
 	}
 
 	resticRepoRec := veleroctrls.NewResticRepoReconciler(leaderElectionNamespace, s.logger, s.mgr.GetClient(), restic.DefaultMaintenanceFrequency, s.resticManager)
@@ -291,4 +298,45 @@ func setRestConfig(c *rest.Config) {
 	if *restConfigBurst > 0 {
 		c.Burst = *restConfigBurst
 	}
+}
+
+func ensureDefaultBackupStorageLocation(c veleroclientset.Interface) error {
+	bslName := "minio"
+	namespace := "cne-system"
+
+	_, err := c.VeleroV1().BackupStorageLocations(namespace).Get(context.TODO(), bslName, metav1.GetOptions{})
+	if err != nil {
+		bsl := velerov1.BackupStorageLocation{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: bslName, Namespace: namespace,
+			},
+			Spec: velerov1.BackupStorageLocationSpec{
+				Provider: "aws",
+				Config: map[string]string{
+					"bucket":           "volumes",
+					"profile":          "default",
+					"region":           "volumes",
+					"s3ForcePathStyle": "true",
+					"s3Url":            "http://cne-operator-minio:9000",
+				},
+				Credential: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: "minio-credentials",
+					},
+					Key: "minio",
+				},
+				StorageType: velerov1.StorageType{
+					ObjectStorage: &velerov1.ObjectStorageLocation{
+						Bucket: "volumes",
+					},
+				},
+				Default:             true,
+				AccessMode:          "",
+				BackupSyncPeriod:    nil,
+				ValidationFrequency: nil,
+			},
+		}
+		_, err = c.VeleroV1().BackupStorageLocations(namespace).Create(context.TODO(), &bsl, metav1.CreateOptions{})
+	}
+	return err
 }
