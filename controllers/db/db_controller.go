@@ -9,6 +9,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -30,7 +31,8 @@ import (
 )
 
 const (
-	controllerName = "db-controller"
+	controllerName     = "db-controller"
+	minRequeueDuration = time.Second * 5
 )
 
 func Add(mgr manager.Manager) error {
@@ -55,8 +57,8 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	if err != nil {
 		return err
 	}
-	// Watch for changes to DbService
-	err = c.Watch(&source.Kind{Type: &quchengv1beta1.DbService{}}, &handler.EnqueueRequestForObject{})
+	// Watch for changes to Db
+	err = c.Watch(&source.Kind{Type: &quchengv1beta1.Db{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
@@ -102,7 +104,11 @@ func (r *DbReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 
 	// fetch dbsvc
 	dbsvc := &quchengv1beta1.DbService{}
-	err = r.Get(context.TODO(), types.NamespacedName{Name: db.Spec.TargetService.Name, Namespace: db.Spec.TargetService.Namespace}, dbsvc)
+	dbsvcNS := db.Spec.TargetService.Namespace
+	if len(dbsvcNS) == 0 {
+		dbsvcNS = db.Namespace
+	}
+	err = r.Get(context.TODO(), types.NamespacedName{Name: db.Spec.TargetService.Name, Namespace: dbsvcNS}, dbsvc)
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return reconcile.Result{}, fmt.Errorf("failed to get dbsvc %s: %v", db.Name, err)
@@ -133,12 +139,13 @@ func (r *DbReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 		ChildName: db.Spec.DbName,
 		ChildUser: db.Spec.Account.User.Value,
 		ChildPass: db.Spec.Account.Password.Value,
+		Type:      string(dbsvc.Spec.Type),
 	}
 
 	if err := r.updateDbStatus(db, dbmeta); err != nil {
 		return reconcile.Result{}, err
 	}
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: minRequeueDuration}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -217,6 +224,16 @@ func (r *DbReconciler) updateDbStatus(db *quchengv1beta1.Db, dbmeta util.DBMeta)
 	} else {
 		dbstatus.Address = dbmeta.Address
 		dbstatus.Network = true
+		if !dbtool.CheckExist() {
+			r.Logger.Debugf("dbsvc not foud db %s", dbmeta.ChildName)
+			if err := dbtool.CreateDB(); err != nil {
+				r.EventRecorder.Eventf(db, corev1.EventTypeWarning, "CreateDBFailed", "CreateDBFailed %v", err)
+				db.Status = dbstatus
+				return r.Status().Update(context.TODO(), db)
+			} else {
+				r.EventRecorder.Eventf(db, corev1.EventTypeNormal, "CreateDBSuccess", "CreateDBSuccess %v", dbmeta.ChildName)
+			}
+		}
 		if err := dbtool.CheckChildAuth(); err != nil {
 			dbstatus.Auth = false
 			dbstatus.Ready = false

@@ -8,6 +8,8 @@ package qucheng
 
 import (
 	"context"
+	"time"
+
 	quchengv1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
 	"github.com/easysoft/qucheng-operator/controllers/base"
 	clientset "github.com/easysoft/qucheng-operator/pkg/client/clientset/versioned"
@@ -25,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
 )
 
 type BackupController struct {

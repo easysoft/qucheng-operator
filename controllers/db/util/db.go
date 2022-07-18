@@ -9,6 +9,7 @@ package util
 type DB interface {
 	CheckRootAuth() error
 	CheckChildAuth() error
+	CheckExist() bool
 	CreateDB() error
 	DropDB() error
 }

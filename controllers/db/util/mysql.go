@@ -40,6 +40,21 @@ func (mysql MysqlMeta) CheckChildAuth() error {
 	return db.Ping()
 }
 
+func (mysql MysqlMeta) CheckExist() bool {
+	dsn := fmt.Sprintf("%s:%s@tcp(%s)/?charset=utf8mb4&parseTime=True&loc=Local",
+		mysql.RootUser, mysql.RootPass, mysql.Address)
+	dbclient, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return false
+	}
+	defer dbclient.Close()
+	_, err = dbclient.Exec("use " + mysql.ChildName)
+	if err != nil {
+		return false
+	}
+	return true
+}
+
 func (mysql MysqlMeta) CreateDB() error {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s)/?charset=utf8mb4&parseTime=True&loc=Local",
 		mysql.RootUser, mysql.RootPass, mysql.Address)

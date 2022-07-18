@@ -19,6 +19,9 @@ package qucheng
 import (
 	"context"
 	"fmt"
+	"os"
+	"time"
+
 	"github.com/easysoft/qucheng-operator/pkg/db"
 	"github.com/easysoft/qucheng-operator/pkg/db/mysql"
 	"github.com/easysoft/qucheng-operator/pkg/storage"
@@ -29,10 +32,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/clock"
-	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
 
 	quchengv1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
 )
