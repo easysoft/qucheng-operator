@@ -21,7 +21,12 @@ spec:
     singular: backup
   scope: Namespaced
   versions:
-  - name: v1beta1
+  - additionalPrinterColumns:
+    - description: Backup status such as New/InProgress
+      jsonPath: .status.phase
+      name: Status
+      type: string
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: Backup is the Schema for the backups API
@@ -209,7 +214,12 @@ spec:
     singular: dbrestore
   scope: Namespaced
   versions:
-  - name: v1beta1
+  - additionalPrinterColumns:
+    - description: DbRestore status such as New/InProgress
+      jsonPath: .status.phase
+      name: Status
+      type: string
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: DbRestore is the Schema for the dbrestores API
@@ -832,7 +842,12 @@ spec:
     singular: restore
   scope: Namespaced
   versions:
-  - name: v1beta1
+  - additionalPrinterColumns:
+    - description: Restore status such as New/InProgress
+      jsonPath: .status.phase
+      name: Status
+      type: string
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: Restore is the Schema for the restores API
@@ -917,7 +932,7 @@ spec:
         control-plane: controller-manager
     spec:
       containers:
-      - image: hub.qucheng.com/platform/cne-operator:0.0.1-20220715-cab48dc
+      - image: hub.qucheng.com/platform/cne-operator:0.0.1-20220718-9491b7e
         imagePullPolicy: Always
         livenessProbe:
           httpGet:

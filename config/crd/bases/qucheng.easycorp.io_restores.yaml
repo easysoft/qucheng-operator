@@ -15,7 +15,12 @@ spec:
     singular: restore
   scope: Namespaced
   versions:
-  - name: v1beta1
+  - additionalPrinterColumns:
+    - description: Restore status such as New/InProgress
+      jsonPath: .status.phase
+      name: Status
+      type: string
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: Restore is the Schema for the restores API
