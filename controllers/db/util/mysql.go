@@ -48,7 +48,7 @@ func (mysql MysqlMeta) CheckExist() bool {
 		return false
 	}
 	defer dbclient.Close()
-	_, err = dbclient.Exec("use " + mysql.ChildName)
+	_, err = dbclient.Exec(fmt.Sprintf("use `%s`", mysql.ChildName))
 	if err != nil {
 		return false
 	}
@@ -63,19 +63,19 @@ func (mysql MysqlMeta) CreateDB() error {
 		return err
 	}
 	defer dbclient.Close()
-	_, err = dbclient.Exec("CREATE DATABASE IF NOT EXISTS " + mysql.ChildName + ";")
+	_, err = dbclient.Exec(fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s`;", mysql.ChildName))
 	if err != nil {
 		return fmt.Errorf("create db err: %v", err)
 	}
-	_, err = dbclient.Exec("use " + mysql.ChildName)
+	_, err = dbclient.Exec(fmt.Sprintf("use `%s`", mysql.ChildName))
 	if err != nil {
 		return fmt.Errorf("use db err: %v", err)
 	}
-	_, err = dbclient.Exec("CREATE USER '" + mysql.ChildUser + "'@'%' IDENTIFIED BY '" + mysql.ChildPass + "';")
+	_, err = dbclient.Exec(fmt.Sprintf("CREATE USER `%s`@'%%' IDENTIFIED BY '%s';", mysql.ChildUser, mysql.ChildPass))
 	if err != nil {
 		return fmt.Errorf("crea db user err: %v", err)
 	}
-	grantCmd := fmt.Sprintf("GRANT ALL ON %s.* TO '%s'@'%%'", mysql.ChildName, mysql.ChildUser)
+	grantCmd := fmt.Sprintf("GRANT ALL ON `%s`.* TO `%s`@'%%'", mysql.ChildName, mysql.ChildUser)
 	_, err = dbclient.Exec(grantCmd)
 	if err != nil {
 		return fmt.Errorf("grant user err: %v", err)
@@ -95,7 +95,7 @@ func (mysql MysqlMeta) DropDB() error {
 	}
 	defer dbclient.Close()
 	// 移除权限
-	revokeCmd := fmt.Sprintf("REVOKE ALL ON %s.* FROM '%s'@'%%';", mysql.ChildName, mysql.ChildUser)
+	revokeCmd := fmt.Sprintf("REVOKE ALL ON `%s`.* FROM '%s'@'%%';", mysql.ChildName, mysql.ChildUser)
 	_, err = dbclient.Exec(revokeCmd)
 	if err != nil {
 		return fmt.Errorf("revoke user %v err: %v, sql: %v", mysql.ChildUser, err, revokeCmd)
@@ -103,14 +103,14 @@ func (mysql MysqlMeta) DropDB() error {
 	logrus.Debugf("revoke user %v", mysql.ChildUser)
 
 	// 删除用户
-	dropUserCmd := fmt.Sprintf("DROP USER IF EXISTS \"%v\";", mysql.ChildUser)
+	dropUserCmd := fmt.Sprintf("DROP USER IF EXISTS \"%s\";", mysql.ChildUser)
 	_, err = dbclient.Exec(dropUserCmd)
 	if err != nil {
 		return fmt.Errorf("delete user %v err: %v, sql: %v", mysql.ChildUser, err, dropUserCmd)
 	}
 	logrus.Debugf("delete user %v", mysql.ChildUser)
 	// 删除数据库
-	dropDBCmd := fmt.Sprintf("DROP DATABASE IF EXISTS %v;", mysql.ChildName)
+	dropDBCmd := fmt.Sprintf("DROP DATABASE IF EXISTS `%s`;", mysql.ChildName)
 	_, err = dbclient.Exec(dropDBCmd)
 	if err != nil {
 		return fmt.Errorf("delete db %v err: %v, sql: %v", mysql.ChildName, err, dropDBCmd)
