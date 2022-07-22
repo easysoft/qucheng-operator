@@ -9,15 +9,12 @@ package dbservice
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -104,6 +101,10 @@ func (r *DbServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return reconcile.Result{}, nil
 	}
 
+	if dbsvc.Status.Ready == true {
+		return reconcile.Result{}, nil
+	}
+
 	// if dbsvc is not exist, we should create it
 	// if dbsvc.Spec.State == "new" || dbsvc.Spec.Service.Name == "" {
 	// 	r.Logger.Infof("dbsvc %s is new will create", dbsvc.Name)
@@ -162,24 +163,6 @@ func (r *DbServiceReconciler) FakeUserPass(dbsvc *quchengv1beta1.DbService) erro
 	return nil
 }
 
-func (r *DbServiceReconciler) updateDbService(dbsvc *quchengv1beta1.DbService) error {
-	dbsvc.Spec.Service = quchengv1beta1.Service{
-		Name:      fmt.Sprintf("%s-%s", dbsvc.Name, dbsvc.Spec.Type),
-		Namespace: dbsvc.Namespace,
-		Port:      intstr.FromInt(3306), // TODO
-	}
-	dbsvc.Spec.Account = quchengv1beta1.Account{
-		User: quchengv1beta1.AccountUser{
-			Value: "root",
-		},
-		Password: quchengv1beta1.AccountPassword{
-			Value: "password",
-		},
-	}
-	// dbsvc.Spec.State = "exist"
-	return r.Update(context.TODO(), dbsvc)
-}
-
 func (r *DbServiceReconciler) updateDbServiceStatus(dbsvc *quchengv1beta1.DbService) error {
 	// update dbsvc status
 	var dbsvcstatus quchengv1beta1.DbServiceStatus
@@ -212,113 +195,9 @@ func (r *DbServiceReconciler) updateDbServiceStatus(dbsvc *quchengv1beta1.DbServ
 			}
 		}
 	}
-	dbsvc.Status = dbsvcstatus
-	return r.Status().Update(context.TODO(), dbsvc)
-}
-
-func (r *DbServiceReconciler) getDbServiceReadyAndDelaytime(dbsvc *quchengv1beta1.DbService) (bool, time.Duration) {
-	created, done, err := r.checkOrCreateDbServiceJob(dbsvc)
-	if err != nil {
-		r.Logger.Errorf("check dbsvc job %s failed for %v", dbsvc.Name, err)
+	if !reflect.DeepEqual(dbsvc.Status, dbsvcstatus) {
+		dbsvc.Status = dbsvcstatus
+		return r.Status().Update(context.TODO(), dbsvc)
 	}
-	if !created {
-		return false, 0
-	}
-	if !done {
-		delay := gdbCreationDelayAfterReady - time.Since(dbsvc.CreationTimestamp.Time)
-		if delay > 0 {
-			return false, delay
-		}
-	}
-	if err := r.updateDbService(dbsvc); err != nil {
-		r.Logger.Errorf("update dbsvc %s status failed for %v", dbsvc.Name, err)
-		r.EventRecorder.Eventf(dbsvc, corev1.EventTypeWarning, "UpdateStatusFailed", "Failed to update gdb %s status", dbsvc.Name)
-	} else {
-		r.EventRecorder.Eventf(dbsvc, corev1.EventTypeNormal, "Success", "Success to update gdb %s status", dbsvc.Name)
-	}
-
-	return true, 0
-}
-
-func (r *DbServiceReconciler) checkOrCreateDbServiceJob(dbsvc *quchengv1beta1.DbService) (bool, bool, error) {
-	// create dbsvc job
-	dbsvcJob := &batchv1.Job{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Job",
-			APIVersion: "batch/v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      dbsvc.Name,
-			Namespace: "cne-system",
-		},
-		Spec: batchv1.JobSpec{
-			Parallelism:             ptrint32(1),
-			Completions:             ptrint32(1),
-			BackoffLimit:            ptrint32(1),
-			TTLSecondsAfterFinished: ptrint32(120),
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{},
-				Spec: corev1.PodSpec{
-					ServiceAccountName: "qucheng-controller-manager",
-					RestartPolicy:      corev1.RestartPolicyOnFailure,
-					Containers: []corev1.Container{
-						{
-							Name:  dbsvc.Name,
-							Image: "hub.qucheng.com/platform/helmtool:mysql",
-							// Command: []string{"sleep", "36000"},
-							Env: []corev1.EnvVar{
-								{
-									Name:  "GDB_NAME",
-									Value: dbsvc.Name,
-								},
-								{
-									Name:  "NAMESPACE",
-									Value: dbsvc.Namespace,
-								},
-								{
-									Name:  "GDB_PASS",
-									Value: dbsvc.Spec.Account.Password.Value,
-								},
-							},
-							Resources: corev1.ResourceRequirements{},
-						},
-					},
-				},
-			},
-		},
-	}
-	if err := r.Get(context.TODO(), types.NamespacedName{Name: dbsvc.Name, Namespace: "cne-system"}, dbsvcJob); err != nil {
-		if errors.IsNotFound(err) {
-			if err := r.Create(context.TODO(), dbsvcJob); err != nil {
-				return false, false, err
-			}
-			r.Logger.Infof("create dbsvc job %s success", dbsvcJob.Name)
-			r.EventRecorder.Eventf(dbsvc, corev1.EventTypeNormal, "Success", "Success to create dbsvc job %s", dbsvcJob.Name)
-			return true, false, nil
-		}
-		return false, false, err
-	}
-	if getDbServiceJobStatus(&dbsvcJob.Status) {
-		return true, true, nil
-	}
-	return true, false, nil
-}
-
-func getDbServiceJobStatus(status *batchv1.JobStatus) bool {
-	if status == nil {
-		return false
-	}
-	for i := range status.Conditions {
-		if status.Conditions[i].Type == batchv1.JobComplete && status.Conditions[i].Status == corev1.ConditionTrue {
-			return true
-		}
-	}
-	if status.Succeeded > 0 {
-		return true
-	}
-	return false
-}
-
-func ptrint32(p int32) *int32 {
-	return &p
+	return nil
 }

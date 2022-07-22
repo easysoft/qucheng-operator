@@ -19,7 +19,8 @@ package qucheng
 import (
 	"context"
 
-	"github.com/easysoft/qucheng-operator/pkg/db/mysql"
+	dbmanage "github.com/easysoft/qucheng-operator/pkg/db/manage"
+
 	"github.com/easysoft/qucheng-operator/pkg/storage"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -97,8 +98,7 @@ func (r *DbRestoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return r.updateStatusToFailed(ctx, &dbr, err, "db not found", log)
 	}
 
-	p := mysql.NewParser(r.Client, &db, log)
-	access, err := p.ParseAccessInfo()
+	m, dbMeta, err := dbmanage.ParseDB(ctx, r.Client, &db)
 	if err != nil {
 		return r.updateStatusToFailed(ctx, &dbr, err, "parse db access info failed", log)
 	}
@@ -112,8 +112,7 @@ func (r *DbRestoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// 		object store should clean temp files
 	defer restoreFd.Close()
 
-	restoreReq := mysql.NewRestoreRequest(access, db.Spec.DbName, restoreFd)
-	err = restoreReq.Run()
+	err = m.Restore(dbMeta, restoreFd)
 	if err != nil {
 		return r.updateStatusToFailed(ctx, &dbr, err, "restore execute failed", log)
 	}

@@ -22,8 +22,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/easysoft/qucheng-operator/pkg/db"
-	"github.com/easysoft/qucheng-operator/pkg/db/mysql"
+	dbmanage "github.com/easysoft/qucheng-operator/pkg/db/manage"
+
 	"github.com/easysoft/qucheng-operator/pkg/storage"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -104,13 +104,18 @@ func (r *DbBackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return r.updateStatusToFailed(ctx, &dbb, err, "db not found", log)
 	}
 
-	dbInfo, backupFd, err := r.processDump(&db)
+	m, dbMeta, err := dbmanage.ParseDB(ctx, r.Client, &db)
+	if err != nil {
+		return r.updateStatusToFailed(ctx, &dbb, err, "parse dbmanager failed", log)
+	}
+
+	backupFd, err := m.Dump(dbMeta)
 	if err != nil {
 		return r.updateStatusToFailed(ctx, &dbb, err, "execute db backup failed", log)
 	}
 
 	appName := dbb.Labels[quchengv1beta1.ApplicationNameLabel]
-	path := r.genPersistentPath(appName, dbInfo.DbType, &db)
+	path := r.genPersistentPath(appName, string(m.DbType()), &db)
 
 	size, err := r.processPersistent(path, backupFd)
 	if err != nil {
@@ -152,23 +157,23 @@ func (r *DbBackupReconciler) updateStatusToFailed(ctx context.Context, dbb *quch
 	return ctrl.Result{}, err
 }
 
-func (r *DbBackupReconciler) processDump(db *quchengv1beta1.Db) (*db.AccessInfo, *os.File, error) {
-	log := r.logger
-	p := mysql.NewParser(r.Client, db, r.logger)
-	access, err := p.ParseAccessInfo()
-	if err != nil {
-		log.WithError(err).Error("parse db access info failed")
-		return nil, nil, err
-	}
-
-	backupReq := mysql.NewBackupRequest(access, db.Spec.DbName)
-	err = backupReq.Run()
-	if err != nil {
-		return nil, nil, errors.New(backupReq.Errors())
-	}
-
-	return access, backupReq.BackupFile, nil
-}
+//func (r *DbBackupReconciler) processDump(db *quchengv1beta1.Db) (*db.AccessInfo, *os.File, error) {
+//	log := r.logger
+//	p := mysql.NewParser(r.Client, db, r.logger)
+//	access, err := p.ParseAccessInfo()
+//	if err != nil {
+//		log.WithError(err).Error("parse db access info failed")
+//		return nil, nil, err
+//	}
+//
+//	backupReq := mysql.NewBackupRequest(access, db.Spec.DbName)
+//	err = backupReq.Run()
+//	if err != nil {
+//		return nil, nil, errors.New(backupReq.Errors())
+//	}
+//
+//	return access, backupReq.BackupFile, nil
+//}
 
 func (r *DbBackupReconciler) processPersistent(absPath string, fd *os.File) (int64, error) {
 	store := storage.NewFileStorage()

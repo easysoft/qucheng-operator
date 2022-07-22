@@ -9,11 +9,12 @@ package main
 import (
 	"context"
 	"flag"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"os"
 	"time"
+
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
@@ -52,6 +53,8 @@ var (
 	syncPeriodStr                     string
 	restConfigQPS                     = flag.Int("rest-config-qps", 30, "QPS of rest config.")
 	restConfigBurst                   = flag.Int("rest-config-burst", 50, "Burst of rest config.")
+
+	logLevel string
 )
 
 func init() {
@@ -73,7 +76,8 @@ func main() {
 		"This determines the namespace in which the leader election configmap will be created, it will use in-cluster namespace if empty.")
 	flag.BoolVar(&enablePprof, "enable-pprof", true, "Enable pprof for controller manager.")
 	flag.StringVar(&pprofAddr, "pprof-addr", ":8090", "The address the pprof binds to.")
-	flag.StringVar(&syncPeriodStr, "sync-period", "", "Determines the minimum frequency at which watched resources are reconciled.")
+	flag.StringVar(&syncPeriodStr, "sync-period", "1m", "Determines the minimum frequency at which watched resources are reconciled.")
+	flag.StringVar(&logLevel, "log-level", "info", "loglevel")
 
 	s, err := newServer(leaderElectionNamespace)
 	if err != nil {
@@ -160,7 +164,11 @@ func newServer(namespace string) (*server, error) {
 
 	logger := logrus.New()
 	logger.SetOutput(os.Stdout)
-	logger.SetLevel(logrus.DebugLevel)
+	level, err := logrus.ParseLevel(logLevel)
+	if err != nil {
+		return nil, err
+	}
+	logger.SetLevel(level)
 	logger.SetFormatter(&logrus.TextFormatter{
 		ForceQuote:       true,
 		TimestampFormat:  time.RFC3339,

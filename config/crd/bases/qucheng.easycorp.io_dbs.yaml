@@ -49,7 +49,6 @@ spec:
           metadata:
             type: object
           spec:
-            description: DbSpec defines the desired state of Db
             properties:
               account:
                 properties:
@@ -146,6 +145,10 @@ spec:
                 required:
                 - password
                 - user
+                type: object
+              config:
+                additionalProperties:
+                  type: string
                 type: object
               dbName:
                 type: string

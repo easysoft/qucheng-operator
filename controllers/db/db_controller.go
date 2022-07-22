@@ -9,12 +9,16 @@ package db
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
+
+	dbmanage "github.com/easysoft/qucheng-operator/pkg/db/manage"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -58,7 +62,15 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 	// Watch for changes to Db
-	err = c.Watch(&source.Kind{Type: &quchengv1beta1.Db{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &quchengv1beta1.Db{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
+		DeleteFunc: func(event event.DeleteEvent) bool {
+			obj := event.Object.(*quchengv1beta1.Db)
+			logrus.Infof("receive db delete %+v", obj)
+			e := recycleDB(mgr.GetClient(), obj)
+			fmt.Printf("recycle db failed, %v", e)
+			return e != nil
+		},
+	})
 	if err != nil {
 		return err
 	}
@@ -94,58 +106,32 @@ func (r *DbReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 			return reconcile.Result{}, fmt.Errorf("failed to get db %s: %v", req.NamespacedName.Name, err)
 		}
 		r.Logger.Errorf("db %s not found, err: %v", req.NamespacedName.Name, err)
-		db = nil
-	}
-	if db == nil || db.DeletionTimestamp != nil {
-		// TODO clean db
-		r.Logger.Infof("db %s is deleted", req.Name)
 		return reconcile.Result{}, nil
 	}
 
-	// fetch dbsvc
-	dbsvc := &quchengv1beta1.DbService{}
-	dbsvcNS := db.Spec.TargetService.Namespace
-	if len(dbsvcNS) == 0 {
-		dbsvcNS = db.Namespace
-	}
-	err = r.Get(context.TODO(), types.NamespacedName{Name: db.Spec.TargetService.Name, Namespace: dbsvcNS}, dbsvc)
+	original := db.DeepCopy()
+	db.Status.Ready = false
+	db.Status.Auth = false
+	db.Status.Network = false
+
+	m, dbMeta, err := dbmanage.ParseDB(ctx, r.Client, db)
 	if err != nil {
-		if !errors.IsNotFound(err) {
-			return reconcile.Result{}, fmt.Errorf("failed to get dbsvc %s: %v", db.Name, err)
+		return ctrl.Result{}, r.compareAndPatchStatus(ctx, db, original)
+	}
+	db.Status.Network = true
+
+	if err = m.IsValid(dbMeta); err != nil {
+		r.Logger.WithError(err).Error("db auth invalid")
+		if err = m.CreateDB(dbMeta); err != nil {
+			return ctrl.Result{}, r.compareAndPatchStatus(ctx, db, original)
 		}
-		dbsvc = nil
+
 	}
 
-	if dbsvc == nil {
-		// TODO dbsvc not found
-		r.Logger.Warnf("dbsvc %s not found, should create one", db.Spec.TargetService.Name)
-		return reconcile.Result{}, nil
-	}
-
-	if err := r.FakeUserPass(dbsvc); err != nil {
-		r.Logger.Errorf("failed to fake root user pass: %v", err)
-		return reconcile.Result{}, err
-	}
-
-	if err := r.FakeChildUserPass(db); err != nil {
-		r.Logger.Errorf("failed to fake child user pass: %v", err)
-		return reconcile.Result{}, err
-	}
-
-	dbmeta := util.DBMeta{
-		Address:   dbsvc.Status.Address,
-		RootUser:  dbsvc.Spec.Account.User.Value,
-		RootPass:  dbsvc.Spec.Account.Password.Value,
-		ChildName: db.Spec.DbName,
-		ChildUser: db.Spec.Account.User.Value,
-		ChildPass: db.Spec.Account.Password.Value,
-		Type:      string(dbsvc.Spec.Type),
-	}
-
-	if err := r.updateDbStatus(db, dbmeta); err != nil {
-		return reconcile.Result{}, err
-	}
-	return ctrl.Result{RequeueAfter: minRequeueDuration}, nil
+	db.Status.Address = m.ServerInfo().Address()
+	db.Status.Auth = true
+	db.Status.Ready = true
+	return ctrl.Result{RequeueAfter: 12 * minRequeueDuration}, r.compareAndPatchStatus(ctx, db, original)
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -153,6 +139,13 @@ func (r *DbReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&quchengv1beta1.DbService{}).
 		Complete(r)
+}
+
+func (r *DbReconciler) compareAndPatchStatus(ctx context.Context, obj, origin *quchengv1beta1.Db) error {
+	if reflect.DeepEqual(obj, origin) {
+		return nil
+	}
+	return r.Status().Patch(ctx, obj, client.MergeFrom(origin))
 }
 
 func (r *DbReconciler) FakeUserPass(dbsvc *quchengv1beta1.DbService) error {
@@ -244,6 +237,9 @@ func (r *DbReconciler) updateDbStatus(db *quchengv1beta1.Db, dbmeta util.DBMeta)
 			r.EventRecorder.Eventf(db, corev1.EventTypeNormal, "Success", "Success to check %s network & auth", dbstatus.Address)
 		}
 	}
-	db.Status = dbstatus
-	return r.Status().Update(context.TODO(), db)
+	if !reflect.DeepEqual(db.Status, dbstatus) {
+		db.Status = dbstatus
+		return r.Status().Update(context.TODO(), db)
+	}
+	return nil
 }
