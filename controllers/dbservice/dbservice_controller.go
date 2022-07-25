@@ -31,9 +31,9 @@ import (
 )
 
 const (
-	controllerName             = "dbservice-controller"
-	gdbCreationDelayAfterReady = time.Second * 30
-	minRequeueDuration         = time.Second * 5
+	controllerName = "dbservice-controller"
+	//gdbCreationDelayAfterReady = time.Second * 30
+	minRequeueDuration = time.Second * 5
 )
 
 func Add(mgr manager.Manager) error {

@@ -129,13 +129,6 @@ func NewBackupper(ctx context.Context, backup *quchengv1beta1.Backup, schema *ru
 	return b, nil
 }
 
-type pvcInfo struct {
-	pvb       velerov1.PodVolumeBackup
-	pvcName   string
-	podInfo   v1.ObjectReference
-	confirmed bool
-}
-
 func (b *backupper) FindBackupPvcs(namespace string, selector client.MatchingLabels) ([]PvcBackup, error) {
 	var result = make([]PvcBackup, 0)
 	podList := v1.PodList{}

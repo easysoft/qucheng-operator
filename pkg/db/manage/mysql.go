@@ -80,7 +80,7 @@ func (m *mysqlManage) CreateDB(meta *DbMeta) error {
 	if err != nil {
 		return fmt.Errorf("grant user err: %v", err)
 	}
-	if config.GrantSuperPrivilege {
+	if config.GrantSuperPrivilege == "true" {
 		superCmd := fmt.Sprintf("UPDATE mysql.user SET Super_Priv='Y' WHERE user='%s' AND host='%%';", meta.User)
 		_, err = dbClient.Exec(superCmd)
 		if err != nil {

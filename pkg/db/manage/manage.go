@@ -35,5 +35,5 @@ type DbMeta struct {
 	Name     string
 	User     string
 	Password string
-	Config   map[string]interface{}
+	Config   map[string]string
 }
