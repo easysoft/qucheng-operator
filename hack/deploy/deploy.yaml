@@ -334,7 +334,6 @@ spec:
           metadata:
             type: object
           spec:
-            description: DbSpec defines the desired state of Db
             properties:
               account:
                 properties:
@@ -417,6 +416,10 @@ spec:
                 required:
                 - password
                 - user
+                type: object
+              config:
+                additionalProperties:
+                  type: string
                 type: object
               dbName:
                 type: string
@@ -932,7 +935,7 @@ spec:
         control-plane: controller-manager
     spec:
       containers:
-      - image: hub.qucheng.com/platform/cne-operator:0.0.1-20220718-9491b7e
+      - image: hub.qucheng.com/platform/cne-operator:1.2.0-20220726-a6f73b2
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
