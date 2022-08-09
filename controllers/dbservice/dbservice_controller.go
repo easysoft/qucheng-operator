@@ -172,8 +172,10 @@ func (r *DbServiceReconciler) updateDbServiceStatus(dbsvc *quchengv1beta1.DbServ
 	if dbtool == nil {
 		dbsvcstatus.Auth = false
 		dbsvcstatus.Ready = false
+		dbsvcstatus.Global = false
 		r.EventRecorder.Eventf(dbsvc, corev1.EventTypeWarning, "NotSupport", "Not NotSupport %v", dbsvc.Spec.Type)
 	} else {
+		dbsvcstatus.Global = util.VaildGlobalDatabase(dbsvc.Labels)
 		dbsvcstatus.Address = fmt.Sprintf("%s:%s", dbtool.GenHost(), dbtool.GenPort())
 		if err := dbtool.CheckNetWork(); err != nil {
 			dbsvcstatus.Network = false

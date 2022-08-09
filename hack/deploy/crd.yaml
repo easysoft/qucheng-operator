@@ -482,6 +482,9 @@ spec:
     - jsonPath: .status.ready
       name: Ready
       type: boolean
+    - jsonPath: .status.global
+      name: Global
+      type: boolean
     - jsonPath: .status.address
       name: Address
       type: string
@@ -615,12 +618,15 @@ spec:
               child:
                 format: int64
                 type: integer
+              global:
+                type: boolean
               network:
                 type: boolean
               ready:
                 type: boolean
             required:
             - auth
+            - global
             - network
             - ready
             type: object
