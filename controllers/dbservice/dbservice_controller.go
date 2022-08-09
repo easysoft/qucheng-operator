@@ -139,7 +139,7 @@ func (r *DbServiceReconciler) FakeUserPass(dbsvc *quchengv1beta1.DbService) erro
 	if dbsvc.Spec.Account.User.Value == "" {
 		user, err := kube.GetSecretKey(r.Client, dbsvc.Namespace, &corev1.SecretKeySelector{
 			LocalObjectReference: corev1.LocalObjectReference{
-				Name: dbsvc.Spec.Account.Password.ValueFrom.SecretKeyRef.Name,
+				Name: dbsvc.Spec.Account.User.ValueFrom.SecretKeyRef.Name,
 			},
 			Key: dbsvc.Spec.Account.User.ValueFrom.SecretKeyRef.Key,
 		})

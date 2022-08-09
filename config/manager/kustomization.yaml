@@ -9,4 +9,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: hub.qucheng.com/platform/cne-operator
-  newTag: 1.2.1-20220809-5e2da13
+  newTag: 1.3.1-20220809-9bee0b3

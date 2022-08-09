@@ -180,7 +180,7 @@ func (r *DbReconciler) FakeChildUserPass(db *quchengv1beta1.Db) error {
 	if db.Spec.Account.User.Value == "" {
 		user, err := kube.GetSecretKey(r.Client, db.Namespace, &corev1.SecretKeySelector{
 			LocalObjectReference: corev1.LocalObjectReference{
-				Name: db.Spec.Account.Password.ValueFrom.SecretKeyRef.Name,
+				Name: db.Spec.Account.User.ValueFrom.SecretKeyRef.Name,
 			},
 			Key: db.Spec.Account.User.ValueFrom.SecretKeyRef.Key,
 		})
