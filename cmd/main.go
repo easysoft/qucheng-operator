@@ -9,9 +9,15 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
+
+	"github.com/easysoft/qucheng-operator/pkg/logging"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,20 +72,26 @@ func init() {
 }
 
 func main() {
+	viper.AutomaticEnv()
+	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "leader-elect", true,
+	pflag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	pflag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	pflag.BoolVar(&enableLeaderElection, "leader-elect", true,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	flag.StringVar(&leaderElectionNamespace, "leader-election-namespace", "cne-system",
+	pflag.StringVar(&leaderElectionNamespace, "leader-election-namespace", "cne-system",
 		"This determines the namespace in which the leader election configmap will be created, it will use in-cluster namespace if empty.")
-	flag.BoolVar(&enablePprof, "enable-pprof", true, "Enable pprof for controller manager.")
-	flag.StringVar(&pprofAddr, "pprof-addr", ":8090", "The address the pprof binds to.")
-	flag.StringVar(&syncPeriodStr, "sync-period", "1m", "Determines the minimum frequency at which watched resources are reconciled.")
-	flag.StringVar(&logLevel, "log-level", "info", "loglevel")
+	pflag.BoolVar(&enablePprof, "enable-pprof", true, "Enable pprof for controller manager.")
+	pflag.StringVar(&pprofAddr, "pprof-addr", ":8090", "The address the pprof binds to.")
+	pflag.StringVar(&syncPeriodStr, "sync-period", "1m", "Determines the minimum frequency at which watched resources are reconciled.")
+	pflag.String(logging.FlagLogLevel, "info", "loglevel")
+	viper.BindPFlag(logging.FlagLogLevel, pflag.Lookup(logging.FlagLogLevel))
 
-	s, err := newServer(leaderElectionNamespace)
+	viper.BindPFlag("pod-namespace", pflag.Lookup("leader-election-namespace"))
+	pflag.Parse()
+
+	s, err := newServer(viper.GetString("pod-namespace"))
 	if err != nil {
 		s.cancelFunc()
 		setupLog.Error(err, "init server failed")
@@ -162,19 +174,8 @@ type server struct {
 
 func newServer(namespace string) (*server, error) {
 
-	logger := logrus.New()
-	logger.SetOutput(os.Stdout)
-	level, err := logrus.ParseLevel(logLevel)
-	if err != nil {
-		return nil, err
-	}
-	logger.SetLevel(level)
-	logger.SetFormatter(&logrus.TextFormatter{
-		ForceQuote:       true,
-		TimestampFormat:  time.RFC3339,
-		FullTimestamp:    true,
-		QuoteEmptyFields: true,
-	})
+	fmt.Printf("server namespace is %s/%s", namespace, leaderElectionNamespace)
+	logger := logging.DefaultLogger()
 
 	opts := zap.Options{
 		Development: true,
@@ -204,6 +205,7 @@ func newServer(namespace string) (*server, error) {
 			syncPeriod = &d
 		}
 	}
+	logger.Infof("leader namespace is %s", namespace)
 	mgr, err := ctrl.NewManager(config, ctrl.Options{
 		Scheme:                  scheme,
 		MetricsBindAddress:      metricsAddr,
@@ -310,7 +312,7 @@ func setRestConfig(c *rest.Config) {
 
 func ensureDefaultBackupStorageLocation(c veleroclientset.Interface) error {
 	bslName := "minio"
-	namespace := "cne-system"
+	namespace := viper.GetString("pod-namespace")
 
 	_, err := c.VeleroV1().BackupStorageLocations(namespace).Get(context.TODO(), bslName, metav1.GetOptions{})
 	if err != nil {
