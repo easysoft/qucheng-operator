@@ -111,7 +111,7 @@ run: manifests generate fmt vet ## Run a controller from your host.
 
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=hub.qucheng.com/platform/cne-operator:${TAG}
+	#cd config/manager && $(KUSTOMIZE) edit set image controller=hub.qucheng.com/platform/cne-operator:${TAG}
 	docker build --build-arg VERSION=$(BUILD_VERSION) \
   				--build-arg GIT_COMMIT=$(commit_id) \
   				--build-arg GIT_BRANCH=$(branch_name) \
