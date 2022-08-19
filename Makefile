@@ -16,6 +16,28 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+date_time := $(shell date +%Y%m%d)
+ci_tag := $(citag)
+export commit_id := $(shell git rev-parse --short HEAD)
+
+# read gitlab-ci branch tag first, git command for developer environment
+export branch_name := $(or $(CI_COMMIT_BRANCH),$(shell git branch --show-current))
+export branch_name := $(shell echo $(branch_name) | tr "/" "-")
+export _branch_prefix := $(shell echo $(branch_name) | sed 's/-.*//')
+
+ifneq (,$(filter $(_branch_prefix), test sprint))
+  export TAG=$(branch_name)
+  export BUILD_VERSION=$(branch_name)-$(date_time)-$(commit_id)
+else
+  ifdef ci_tag
+    export TAG=$(ci_tag)
+    export BUILD_VERSION=$(ci_tag)-$(date_time)-$(commit_id)
+  else
+    export TAG=$(branch_name)-$(date_time)-$(commit_id)
+    export BUILD_VERSION=$(TAG)
+	endif
+endif
+
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # This is a requirement for 'setup-envtest.sh' in the test target.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
@@ -89,15 +111,18 @@ run: manifests generate fmt vet ## Run a controller from your host.
 
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}:${IMG_VERSION}
-	docker build -t ${IMG}:${IMG_VERSION} .
+	cd config/manager && $(KUSTOMIZE) edit set image controller=hub.qucheng.com/platform/cne-operator:${TAG}
+	docker build --build-arg VERSION=$(BUILD_VERSION) \
+  				--build-arg GIT_COMMIT=$(commit_id) \
+  				--build-arg GIT_BRANCH=$(branch_name) \
+  				-t hub.qucheng.com/platform/cne-operator:$(TAG) \
+  				-f Dockerfile .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
-	docker push ${IMG}:${IMG_VERSION}
+	docker push hub.qucheng.com/platform/qucheng:$(TAG)
 
-.PHONY: docker
-docker: docker-build docker-push ## docker build & push
+operator: docker-build docker-push
 
 ##@ Deployment
 
