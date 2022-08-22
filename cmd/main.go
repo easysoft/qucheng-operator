@@ -175,6 +175,8 @@ func newServer(namespace string) (*server, error) {
 	fmt.Printf("server namespace is %s/%s", namespace, leaderElectionNamespace)
 	logger := logging.DefaultLogger()
 
+	logger.Infof("build date: %s", time.Now().String())
+
 	//opts := zap.Options{
 	//	Development: true,
 	//}
