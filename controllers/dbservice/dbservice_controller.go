@@ -163,7 +163,7 @@ func (r *DbServiceReconciler) updateDbServiceStatus(dbsvc *quchengv1beta1.DbServ
 	// update dbsvc status
 	var dbsvcstatus quchengv1beta1.DbServiceStatus
 
-	_, err := dbmanage.ParseDbService(context.TODO(), r.Client, dbsvc)
+	m, err := dbmanage.ParseDbService(context.TODO(), r.Client, dbsvc)
 	if err != nil {
 		return err
 	}
@@ -193,7 +193,11 @@ func (r *DbServiceReconciler) updateDbServiceStatus(dbsvc *quchengv1beta1.DbServ
 	logger.Debugf("set status.network to %v", dbsvc.Status.Network)
 
 	// check auth
-	if err = dbtool.CheckAuth(); err != nil {
+	err = m.IsValid(&dbmanage.DbMeta{
+		User:     m.ServerInfo().AdminUser(),
+		Password: m.ServerInfo().AdminPassword(),
+	})
+	if err != nil {
 		r.EventRecorder.Eventf(dbsvc, corev1.EventTypeWarning, "AuthFailed", "Failed to auth %s for %v", dbsvcstatus.Address, err)
 		return nil
 	}
