@@ -101,27 +101,6 @@ func (r *DbServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return reconcile.Result{}, nil
 	}
 
-	if dbsvc.Status.Ready == true {
-		return reconcile.Result{}, nil
-	}
-
-	// if dbsvc is not exist, we should create it
-	// if dbsvc.Spec.State == "new" || dbsvc.Spec.Service.Name == "" {
-	// 	r.Logger.Infof("dbsvc %s is new will create", dbsvc.Name)
-	// 	if len(dbsvc.Spec.Account.Password.Value) == 0 {
-	// 		// TODO gen password
-	// 		dbsvc.Spec.Account.Password.Value = "password"
-	// 	}
-	// 	if isReady, delay := r.getDbServiceReadyAndDelaytime(dbsvc); !isReady {
-	// 		r.Logger.Infof("skip for dbsvc %s has not ready yet.", req.Name)
-	// 		return reconcile.Result{}, nil
-	// 	} else if delay > 0 {
-	// 		r.Logger.Infof("skip for dbsvc %s waiting for ready %s.", req.Name, delay)
-	// 		return reconcile.Result{RequeueAfter: delay}, nil
-	// 	}
-	// 	return reconcile.Result{}, nil
-	// }
-
 	if err := r.updateDbServiceStatus(dbsvc); err != nil {
 		return reconcile.Result{}, err
 	}
