@@ -146,39 +146,40 @@ func (r *DbServiceReconciler) updateDbServiceStatus(dbsvc *quchengv1beta1.DbServ
 	// update dbsvc status
 	var dbsvcstatus quchengv1beta1.DbServiceStatus
 
+	original := dbsvc.DeepCopy()
+	dbsvc.Status.Auth = false
+	dbsvc.Status.Network = false
+	dbsvc.Status.Ready = false
+	dbsvc.Status.Global = false
 	// check network
 	dbtool := util.NewDB(dbsvc)
 	if dbtool == nil {
-		dbsvcstatus.Auth = false
-		dbsvcstatus.Ready = false
-		dbsvcstatus.Global = false
 		r.EventRecorder.Eventf(dbsvc, corev1.EventTypeWarning, "NotSupport", "Not NotSupport %v", dbsvc.Spec.Type)
 	} else {
-		dbsvcstatus.Global = util.VaildGlobalDatabase(dbsvc.Labels)
-		dbsvcstatus.Address = fmt.Sprintf("%s:%s", dbtool.GenHost(), dbtool.GenPort())
+		dbsvc.Status.Global = util.VaildGlobalDatabase(dbsvc.Labels)
+		dbsvc.Status.Address = fmt.Sprintf("%s:%s", dbtool.GenHost(), dbtool.GenPort())
 		if err := dbtool.CheckNetWork(); err != nil {
-			dbsvcstatus.Network = false
-			dbsvcstatus.Ready = false
+			dbsvc.Status.Network = false
+			dbsvc.Status.Ready = false
 			r.EventRecorder.Eventf(dbsvc, corev1.EventTypeWarning, "NetworkUnreachable", "Failed to conn %s for %v", dbsvcstatus.Address, err)
 		} else {
-			dbsvcstatus.Network = true
+			dbsvc.Status.Network = true
 			if err := r.FakeUserPass(dbsvc); err != nil {
 				r.Logger.Errorf("fake user pass error for %v", err)
 			}
 			if err := dbtool.CheckAuth(); err != nil {
-				dbsvcstatus.Auth = false
-				dbsvcstatus.Ready = false
+				dbsvc.Status.Auth = false
+				dbsvc.Status.Ready = false
 				r.EventRecorder.Eventf(dbsvc, corev1.EventTypeWarning, "AuthFailed", "Failed to auth %s for %v", dbsvcstatus.Address, err)
 			} else {
-				dbsvcstatus.Auth = true
-				dbsvcstatus.Ready = true
+				dbsvc.Status.Auth = true
+				dbsvc.Status.Ready = true
 				r.EventRecorder.Eventf(dbsvc, corev1.EventTypeNormal, "Success", "Success to check %s network & auth", dbsvcstatus.Address)
 			}
 		}
 	}
-	if !reflect.DeepEqual(dbsvc.Status, dbsvcstatus) {
-		dbsvc.Status = dbsvcstatus
-		return r.Status().Update(context.TODO(), dbsvc)
+	if !reflect.DeepEqual(dbsvc.Status, original.Status) {
+		return r.Status().Patch(context.TODO(), dbsvc, client.MergeFrom(original))
 	}
 	return nil
 }
