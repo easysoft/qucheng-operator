@@ -120,7 +120,7 @@ docker-build: ## Build docker image with the manager.
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
-	docker push hub.qucheng.com/platform/qucheng:$(TAG)
+	docker push hub.qucheng.com/platform/cne-operator:$(TAG)
 
 operator: docker-build docker-push
 
