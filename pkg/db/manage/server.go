@@ -9,8 +9,10 @@ package manage
 import "fmt"
 
 type serverInfo struct {
-	host string
-	port int32
+	host   string
+	port   int32
+	user   string
+	passwd string
 }
 
 func (s *serverInfo) Host() string {
@@ -23,4 +25,12 @@ func (s *serverInfo) Port() int32 {
 
 func (s *serverInfo) Address() string {
 	return fmt.Sprintf("%s:%d", s.host, s.port)
+}
+
+func (s *serverInfo) AdminUser() string {
+	return s.user
+}
+
+func (s *serverInfo) AdminPassword() string {
+	return s.passwd
 }

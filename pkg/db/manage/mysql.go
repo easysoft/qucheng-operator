@@ -40,6 +40,7 @@ func (m *mysqlManage) DbType() quchengv1beta1.DbType {
 func (m *mysqlManage) ServerInfo() DbServerInfo {
 	return &serverInfo{
 		host: m.meta.Host, port: m.meta.Port,
+		user: m.meta.AdminUser, passwd: m.meta.AdminPassword,
 	}
 }
 

@@ -12,11 +12,12 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/easysoft/qucheng-operator/pkg/logging"
+
 	dbmanage "github.com/easysoft/qucheng-operator/pkg/db/manage"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
@@ -29,9 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	quchengv1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
-	"github.com/easysoft/qucheng-operator/controllers/db/util"
 	"github.com/sirupsen/logrus"
-	"github.com/vmware-tanzu/velero/pkg/util/kube"
 )
 
 const (
@@ -47,7 +46,7 @@ func Add(mgr manager.Manager) error {
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	recorder := mgr.GetEventRecorderFor(controllerName)
 	return &DbReconciler{
-		Logger:        logrus.New().WithField("controller", controllerName),
+		Logger:        logging.DefaultLogger().WithField("controller", controllerName),
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
 		EventRecorder: recorder,
@@ -146,100 +145,4 @@ func (r *DbReconciler) compareAndPatchStatus(ctx context.Context, obj, origin *q
 		return nil
 	}
 	return r.Status().Patch(ctx, obj, client.MergeFrom(origin))
-}
-
-func (r *DbReconciler) FakeUserPass(dbsvc *quchengv1beta1.DbService) error {
-	if dbsvc.Spec.Account.User.Value == "" {
-		user, err := kube.GetSecretKey(r.Client, dbsvc.Namespace, &corev1.SecretKeySelector{
-			LocalObjectReference: corev1.LocalObjectReference{
-				Name: dbsvc.Spec.Account.Password.ValueFrom.SecretKeyRef.Name,
-			},
-			Key: dbsvc.Spec.Account.User.ValueFrom.SecretKeyRef.Key,
-		})
-		if err != nil {
-			return err
-		}
-		dbsvc.Spec.Account.User.Value = string(user)
-	}
-	if dbsvc.Spec.Account.Password.Value == "" {
-		password, err := kube.GetSecretKey(r.Client, dbsvc.Namespace, &corev1.SecretKeySelector{
-			LocalObjectReference: corev1.LocalObjectReference{
-				Name: dbsvc.Spec.Account.Password.ValueFrom.SecretKeyRef.Name,
-			},
-			Key: dbsvc.Spec.Account.Password.ValueFrom.SecretKeyRef.Key,
-		})
-		if err != nil {
-			return err
-		}
-		dbsvc.Spec.Account.Password.Value = string(password)
-	}
-	return nil
-}
-
-func (r *DbReconciler) FakeChildUserPass(db *quchengv1beta1.Db) error {
-	if db.Spec.Account.User.Value == "" {
-		user, err := kube.GetSecretKey(r.Client, db.Namespace, &corev1.SecretKeySelector{
-			LocalObjectReference: corev1.LocalObjectReference{
-				Name: db.Spec.Account.User.ValueFrom.SecretKeyRef.Name,
-			},
-			Key: db.Spec.Account.User.ValueFrom.SecretKeyRef.Key,
-		})
-		if err != nil {
-			return err
-		}
-		db.Spec.Account.User.Value = string(user)
-	}
-	if db.Spec.Account.Password.Value == "" {
-		password, err := kube.GetSecretKey(r.Client, db.Namespace, &corev1.SecretKeySelector{
-			LocalObjectReference: corev1.LocalObjectReference{
-				Name: db.Spec.Account.Password.ValueFrom.SecretKeyRef.Name,
-			},
-			Key: db.Spec.Account.Password.ValueFrom.SecretKeyRef.Key,
-		})
-		if err != nil {
-			return err
-		}
-		db.Spec.Account.Password.Value = string(password)
-	}
-	return nil
-}
-
-func (r *DbReconciler) updateDbStatus(db *quchengv1beta1.Db, dbmeta util.DBMeta) error {
-	// update db status
-	var dbstatus quchengv1beta1.DbStatus
-
-	// check network
-	dbtool := util.NewDB(dbmeta)
-	if dbtool == nil {
-		dbstatus.Auth = false
-		dbstatus.Ready = false
-		r.EventRecorder.Eventf(db, corev1.EventTypeWarning, "NotSupport", "Not NotSupport %v", dbmeta.Type)
-	} else {
-		dbstatus.Address = dbmeta.Address
-		dbstatus.Network = true
-		if !dbtool.CheckExist() {
-			r.Logger.Debugf("dbsvc not foud db %s", dbmeta.ChildName)
-			if err := dbtool.CreateDB(); err != nil {
-				r.EventRecorder.Eventf(db, corev1.EventTypeWarning, "CreateDBFailed", "CreateDBFailed %v", err)
-				db.Status = dbstatus
-				return r.Status().Update(context.TODO(), db)
-			} else {
-				r.EventRecorder.Eventf(db, corev1.EventTypeNormal, "CreateDBSuccess", "CreateDBSuccess %v", dbmeta.ChildName)
-			}
-		}
-		if err := dbtool.CheckChildAuth(); err != nil {
-			dbstatus.Auth = false
-			dbstatus.Ready = false
-			r.EventRecorder.Eventf(db, corev1.EventTypeWarning, "AuthFailed", "Failed to auth %s for %v", dbstatus.Address, err)
-		} else {
-			dbstatus.Auth = true
-			dbstatus.Ready = true
-			r.EventRecorder.Eventf(db, corev1.EventTypeNormal, "Success", "Success to check %s network & auth", dbstatus.Address)
-		}
-	}
-	if !reflect.DeepEqual(db.Status, dbstatus) {
-		db.Status = dbstatus
-		return r.Status().Update(context.TODO(), db)
-	}
-	return nil
 }

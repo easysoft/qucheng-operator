@@ -22,8 +22,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
 	"github.com/easysoft/qucheng-operator/pkg/credentials"
 	"github.com/vmware-tanzu/velero/pkg/restic"
 	"github.com/vmware-tanzu/velero/pkg/util/filesystem"
@@ -177,13 +175,13 @@ func newServer(namespace string) (*server, error) {
 	fmt.Printf("server namespace is %s/%s", namespace, leaderElectionNamespace)
 	logger := logging.DefaultLogger()
 
-	opts := zap.Options{
-		Development: true,
-	}
-	opts.BindFlags(flag.CommandLine)
-	flag.Parse()
-
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	//opts := zap.Options{
+	//	Development: true,
+	//}
+	//opts.BindFlags(flag.CommandLine)
+	//flag.Parse()
+	//
+	//ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	if enablePprof {
 		go func() {

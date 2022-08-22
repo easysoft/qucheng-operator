@@ -27,6 +27,8 @@ type DbServerInfo interface {
 	Host() string
 	Port() int32
 	Address() string
+	AdminUser() string
+	AdminPassword() string
 }
 
 type DbServiceMeta struct {
