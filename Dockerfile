@@ -31,11 +31,13 @@ FROM hub.qucheng.com/app/mysql:5.7.37-debian-10 as mysql57
 FROM hub.qucheng.com/library/debian:11.3-slim
 WORKDIR /
 
+COPY docker/prebuildfs /
+
 ENV TZ=Asia/Shanghai \
     DEBIAN_FRONTEND=noninteractive
 
 RUN sed -i -r 's/(deb|security).debian.org/mirrors.cloud.tencent.com/g' /etc/apt/sources.list \
-    && install_packages curl tzdata apt-transport-https ca-certificates procps \
+    && apt curl tzdata apt-transport-https ca-certificates procps \
     && ln -fs /usr/share/zoneinfo/${TZ} /etc/localtime \
     && echo ${TZ} > /etc/timezone \
     && dpkg-reconfigure --frontend noninteractive tzdata
