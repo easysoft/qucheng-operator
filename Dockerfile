@@ -31,6 +31,15 @@ FROM hub.qucheng.com/app/mysql:5.7.37-debian-10 as mysql57
 FROM hub.qucheng.com/library/debian:11.3-slim
 WORKDIR /
 
+ENV TZ=Asia/Shanghai \
+    DEBIAN_FRONTEND=noninteractive
+
+RUN sed -i -r 's/(deb|security).debian.org/mirrors.cloud.tencent.com/g' /etc/apt/sources.list \
+    && install_packages curl tzdata apt-transport-https ca-certificates procps \
+    && ln -fs /usr/share/zoneinfo/${TZ} /etc/localtime \
+    && echo ${TZ} > /etc/timezone \
+    && dpkg-reconfigure --frontend noninteractive tzdata
+
 COPY --from=mysql57 /opt/bitnami/mysql/bin/mysql /bin/mysql
 COPY --from=mysql57 /opt/bitnami/mysql/bin/mysqldump /bin/mysqldump
 COPY --from=mysql57 /lib/x86_64-linux-gnu/libncurses.so.6 /lib/x86_64-linux-gnu/libncurses.so.6
