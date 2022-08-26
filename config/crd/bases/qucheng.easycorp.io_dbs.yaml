@@ -152,6 +152,9 @@ spec:
                 type: object
               dbName:
                 type: string
+              reclaimPolicy:
+                description: DbSpec defines the desired state of Db
+                type: string
               targetService:
                 properties:
                   name:

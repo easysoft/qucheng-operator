@@ -64,6 +64,10 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	err = c.Watch(&source.Kind{Type: &quchengv1beta1.Db{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
 		DeleteFunc: func(event event.DeleteEvent) bool {
 			obj := event.Object.(*quchengv1beta1.Db)
+			if obj.Spec.ReclaimPolicy != nil && *obj.Spec.ReclaimPolicy == quchengv1beta1.DbReclaimRetain {
+				logrus.Info("remove db, but retain the database")
+				return true
+			}
 			logrus.Infof("receive db delete %+v", obj)
 			e := recycleDB(mgr.GetClient(), obj)
 			fmt.Printf("recycle db failed, %v", e)

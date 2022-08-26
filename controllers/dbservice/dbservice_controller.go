@@ -114,10 +114,9 @@ func (r *DbServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	if !reflect.DeepEqual(dbsvc.Status, original.Status) {
-		patch := client.MergeFrom(original)
-		logger.Infof("updated fields: +%v", patch)
-		err = r.Status().Patch(context.TODO(), dbsvc, patch)
-		return reconcile.Result{}, nil
+		logger.Info("status changed, update dbservice status")
+		err = r.Status().Patch(context.TODO(), dbsvc, client.MergeFrom(original))
+		return reconcile.Result{}, err
 	}
 
 	logger.Info("status not changed")
