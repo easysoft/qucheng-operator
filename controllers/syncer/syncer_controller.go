@@ -33,7 +33,7 @@ import (
 
 const (
 	controllerName     = "syncer-controller"
-	minRequeueDuration = time.Second * 5
+	minRequeueDuration = time.Second * 10
 
 	labelResourceSyncKey   = "easycorp.io/resource_sync"
 	labelResourceSyncValue = "true"
@@ -132,7 +132,7 @@ func (r *SyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		logger.WithError(err).Error("update sa imagePullSecrets failed")
 		return ctrl.Result{RequeueAfter: minRequeueDuration}, err
 	}
-	return ctrl.Result{RequeueAfter: minRequeueDuration}, err
+	return ctrl.Result{RequeueAfter: 9 * minRequeueDuration}, err
 }
 
 // SetupWithManager sets up the controller with the Manager.

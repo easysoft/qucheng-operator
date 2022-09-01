@@ -119,7 +119,7 @@ func (r *DbReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 
 	m, dbMeta, err := dbmanage.ParseDB(ctx, r.Client, db, r.Logger)
 	if err != nil {
-		return ctrl.Result{}, r.compareAndPatchStatus(ctx, db, original)
+		return ctrl.Result{RequeueAfter: minRequeueDuration}, r.compareAndPatchStatus(ctx, db, original)
 	}
 	db.Status.Network = true
 
@@ -127,7 +127,7 @@ func (r *DbReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 		r.Logger.WithError(err).Error("db auth invalid")
 		if err = m.CreateDB(dbMeta); err != nil {
 			r.Logger.WithError(err).Error("create db failed")
-			return ctrl.Result{}, r.compareAndPatchStatus(ctx, db, original)
+			return ctrl.Result{RequeueAfter: minRequeueDuration}, r.compareAndPatchStatus(ctx, db, original)
 		}
 
 	}
@@ -135,7 +135,7 @@ func (r *DbReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 	db.Status.Address = m.ServerInfo().Address()
 	db.Status.Auth = true
 	db.Status.Ready = true
-	return ctrl.Result{RequeueAfter: 2 * minRequeueDuration}, r.compareAndPatchStatus(ctx, db, original)
+	return ctrl.Result{RequeueAfter: 60 * minRequeueDuration}, r.compareAndPatchStatus(ctx, db, original)
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -36,7 +36,7 @@ import (
 const (
 	controllerName = "dbservice-controller"
 	//gdbCreationDelayAfterReady = time.Second * 30
-	minRequeueDuration = time.Second * 5
+	minRequeueDuration = time.Second * 10
 )
 
 func Add(mgr manager.Manager) error {
@@ -110,7 +110,7 @@ func (r *DbServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	logger.Debugln("start parse status")
 	if err = r.updateDbServiceStatus(dbsvc, logger); err != nil {
 		logger.WithError(err).Error("update dbService status failed")
-		return reconcile.Result{}, err
+		return reconcile.Result{RequeueAfter: minRequeueDuration}, err
 	}
 
 	if !reflect.DeepEqual(dbsvc.Status, original.Status) {
@@ -119,11 +119,11 @@ func (r *DbServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if err != nil {
 			logger.WithError(err).Error("update status failed")
 		}
-		return reconcile.Result{}, err
+		return reconcile.Result{RequeueAfter: minRequeueDuration}, err
 	}
 
 	logger.Info("status not changed")
-	return ctrl.Result{RequeueAfter: 5 * minRequeueDuration}, err
+	return ctrl.Result{RequeueAfter: 6 * minRequeueDuration}, err
 }
 
 // SetupWithManager sets up the controller with the Manager.

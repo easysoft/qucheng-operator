@@ -21,12 +21,12 @@ func (m *postgresqlManage) Dump(meta *DbMeta) (*os.File, error) {
 	commandArgs := m.buildConnectArgs()
 	commandArgs = append(commandArgs, "-d", meta.Name)
 
-	output, err := ioutil.TempFile(backupRoot, "pg_dump.*****.sql")
+	output, err := ioutil.TempFile(backupRoot, "pg_dump.*.sql")
 	if err != nil {
 		return nil, err
 	}
 
-	stderr, err := ioutil.TempFile(backupRoot, "pg_dump.*****.err")
+	stderr, err := ioutil.TempFile(backupRoot, "pg_dump.*.err")
 	if err != nil {
 		return nil, err
 	}

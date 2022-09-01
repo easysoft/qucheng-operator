@@ -22,12 +22,12 @@ func (m *mysqlManage) Dump(meta *DbMeta) (*os.File, error) {
 	extraFile := m.buildExtraFile()
 	commandArgs := []string{"--defaults-extra-file=" + extraFile, "--databases", meta.Name}
 
-	output, err := ioutil.TempFile(backupRoot, "mysqldump.*****.sql")
+	output, err := ioutil.TempFile(backupRoot, "mysqldump.*.sql")
 	if err != nil {
 		return nil, err
 	}
 
-	stderr, err := ioutil.TempFile(backupRoot, "mysqldump.*****.err")
+	stderr, err := ioutil.TempFile(backupRoot, "mysqldump.*.err")
 	if err != nil {
 		return nil, err
 	}
