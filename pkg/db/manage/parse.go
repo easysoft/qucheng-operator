@@ -9,6 +9,7 @@ package manage
 import (
 	"context"
 	"fmt"
+	"github.com/sirupsen/logrus"
 
 	quchengv1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
 	"github.com/easysoft/qucheng-operator/pkg/kube"
@@ -18,7 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func ParseDB(ctx context.Context, c client.Client, db *quchengv1beta1.Db) (DbManager, *DbMeta, error) {
+func ParseDB(ctx context.Context, c client.Client, db *quchengv1beta1.Db, logger logrus.FieldLogger) (DbManager, *DbMeta, error) {
 	var err error
 	var dbSvc quchengv1beta1.DbService
 	var dbMgr DbManager
@@ -33,7 +34,7 @@ func ParseDB(ctx context.Context, c client.Client, db *quchengv1beta1.Db) (DbMan
 	if err = c.Get(ctx, client.ObjectKey{Name: target.Name, Namespace: ns}, &dbSvc); err != nil {
 		return nil, nil, err
 	}
-	dbMgr, err = ParseDbService(ctx, c, &dbSvc)
+	dbMgr, err = ParseDbService(ctx, c, &dbSvc, logger)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -57,7 +58,7 @@ func ParseDB(ctx context.Context, c client.Client, db *quchengv1beta1.Db) (DbMan
 	return dbMgr, dbMeta, nil
 }
 
-func ParseDbService(ctx context.Context, c client.Client, dbSvc *quchengv1beta1.DbService) (DbManager, error) {
+func ParseDbService(ctx context.Context, c client.Client, dbSvc *quchengv1beta1.DbService, logger logrus.FieldLogger) (DbManager, error) {
 	svc := dbSvc.Spec.Service
 	host, port, err := readService(ctx, c, dbSvc.Namespace, &svc)
 	if err != nil {
@@ -80,6 +81,8 @@ func ParseDbService(ctx context.Context, c client.Client, dbSvc *quchengv1beta1.
 	switch meta.Type {
 	case quchengv1beta1.DbTypeMysql:
 		return newMysqlManager(meta)
+	case quchengv1beta1.DbTypePostgresql:
+		return newPostgresqlManager(meta, logger)
 	default:
 		return nil, errors.New("dbType is not supported")
 	}

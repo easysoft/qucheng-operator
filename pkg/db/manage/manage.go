@@ -29,6 +29,7 @@ type DbServerInfo interface {
 	Address() string
 	AdminUser() string
 	AdminPassword() string
+	CheckNetWork() error
 }
 
 type DbServiceMeta struct {

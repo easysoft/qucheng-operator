@@ -98,7 +98,7 @@ func (r *DbRestoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return r.updateStatusToFailed(ctx, &dbr, err, "db not found", log)
 	}
 
-	m, dbMeta, err := dbmanage.ParseDB(ctx, r.Client, &db)
+	m, dbMeta, err := dbmanage.ParseDB(ctx, r.Client, &db, log)
 	if err != nil {
 		return r.updateStatusToFailed(ctx, &dbr, err, "parse db access info failed", log)
 	}

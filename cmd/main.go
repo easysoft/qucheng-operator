@@ -91,8 +91,9 @@ func main() {
 
 	s, err := newServer(viper.GetString("pod-namespace"))
 	if err != nil {
-		s.cancelFunc()
+		fmt.Println(err)
 		setupLog.Error(err, "init server failed")
+		s.cancelFunc()
 		os.Exit(2)
 	}
 

@@ -6,7 +6,12 @@
 
 package manage
 
-import "fmt"
+import (
+	"fmt"
+	"net"
+	"strconv"
+	"time"
+)
 
 type serverInfo struct {
 	host   string
@@ -33,4 +38,10 @@ func (s *serverInfo) AdminUser() string {
 
 func (s *serverInfo) AdminPassword() string {
 	return s.passwd
+}
+
+func (s *serverInfo) CheckNetWork() error {
+	address := net.JoinHostPort(s.host, strconv.Itoa(int(s.port)))
+	_, err := net.DialTimeout("tcp", address, 5*time.Second)
+	return err
 }

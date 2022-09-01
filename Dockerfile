@@ -28,6 +28,8 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o cne-operator cmd/main.g
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM hub.qucheng.com/app/mysql:5.7.37-debian-10 as mysql57
 
+FROM hub.qucheng.com/app/postgresql:14.3.0-debian-10-r13 as pg14
+
 FROM hub.qucheng.com/library/debian:11.3-slim
 WORKDIR /
 
@@ -42,12 +44,22 @@ RUN sed -i -r 's/(deb|security).debian.org/mirrors.cloud.tencent.com/g' /etc/apt
     && echo ${TZ} > /etc/timezone \
     && dpkg-reconfigure --frontend noninteractive tzdata
 
+# mysql binary and lib
 COPY --from=mysql57 /opt/bitnami/mysql/bin/mysql /bin/mysql
 COPY --from=mysql57 /opt/bitnami/mysql/bin/mysqldump /bin/mysqldump
 COPY --from=mysql57 /lib/x86_64-linux-gnu/libncurses.so.6 /lib/x86_64-linux-gnu/libncurses.so.6
 COPY --from=mysql57 /usr/lib/x86_64-linux-gnu/libatomic.so.1 /usr/lib/x86_64-linux-gnu/libatomic.so.1
 
+
+# postgresql binary and lib
+COPY --from=pg14 /opt/bitnami/postgresql/bin/pg_dump /bin/pg_dump
+COPY --from=pg14 /opt/bitnami/postgresql/bin/pg_restore /bin/pg_restore
+COPY --from=pg14 /opt/bitnami/postgresql/lib/libpq.so.5.14 /lib/x86_64-linux-gnu/libpq.so.5
+
+# copy restic
 COPY --from=hub.qucheng.com/third-party/restic:0.13.1 /usr/bin/restic /usr/bin/restic
+
+# copy build asset
 COPY --from=builder /workspace/cne-operator .
 
 USER 65534:65534

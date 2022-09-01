@@ -69,7 +69,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 				return true
 			}
 			logrus.Infof("receive db delete %+v", obj)
-			e := recycleDB(mgr.GetClient(), obj)
+			e := recycleDB(mgr.GetClient(), obj, logging.DefaultLogger())
 			fmt.Printf("recycle db failed, %v", e)
 			return e != nil
 		},
@@ -117,7 +117,7 @@ func (r *DbReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 	db.Status.Auth = false
 	db.Status.Network = false
 
-	m, dbMeta, err := dbmanage.ParseDB(ctx, r.Client, db)
+	m, dbMeta, err := dbmanage.ParseDB(ctx, r.Client, db, r.Logger)
 	if err != nil {
 		return ctrl.Result{}, r.compareAndPatchStatus(ctx, db, original)
 	}
@@ -126,6 +126,7 @@ func (r *DbReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 	if err = m.IsValid(dbMeta); err != nil {
 		r.Logger.WithError(err).Error("db auth invalid")
 		if err = m.CreateDB(dbMeta); err != nil {
+			r.Logger.WithError(err).Error("create db failed")
 			return ctrl.Result{}, r.compareAndPatchStatus(ctx, db, original)
 		}
 
@@ -134,7 +135,7 @@ func (r *DbReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 	db.Status.Address = m.ServerInfo().Address()
 	db.Status.Auth = true
 	db.Status.Ready = true
-	return ctrl.Result{RequeueAfter: 12 * minRequeueDuration}, r.compareAndPatchStatus(ctx, db, original)
+	return ctrl.Result{RequeueAfter: 2 * minRequeueDuration}, r.compareAndPatchStatus(ctx, db, original)
 }
 
 // SetupWithManager sets up the controller with the Manager.

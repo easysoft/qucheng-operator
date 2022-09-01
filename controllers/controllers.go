@@ -10,7 +10,6 @@ import (
 	"github.com/easysoft/qucheng-operator/controllers/db"
 	"github.com/easysoft/qucheng-operator/controllers/dbservice"
 	"github.com/easysoft/qucheng-operator/controllers/globaldb"
-	"github.com/easysoft/qucheng-operator/controllers/syncer"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -22,7 +21,7 @@ func init() {
 	controllerAddFuncs = append(controllerAddFuncs, globaldb.Add)
 	controllerAddFuncs = append(controllerAddFuncs, dbservice.Add)
 	controllerAddFuncs = append(controllerAddFuncs, db.Add)
-	controllerAddFuncs = append(controllerAddFuncs, syncer.Add)
+	//controllerAddFuncs = append(controllerAddFuncs, syncer.Add)
 }
 
 func SetupWithManager(m manager.Manager) error {

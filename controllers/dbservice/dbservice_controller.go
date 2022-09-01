@@ -116,11 +116,14 @@ func (r *DbServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if !reflect.DeepEqual(dbsvc.Status, original.Status) {
 		logger.Info("status changed, update dbservice status")
 		err = r.Status().Patch(context.TODO(), dbsvc, client.MergeFrom(original))
+		if err != nil {
+			logger.WithError(err).Error("update status failed")
+		}
 		return reconcile.Result{}, err
 	}
 
 	logger.Info("status not changed")
-	return ctrl.Result{RequeueAfter: minRequeueDuration}, err
+	return ctrl.Result{RequeueAfter: 5 * minRequeueDuration}, err
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -162,7 +165,7 @@ func (r *DbServiceReconciler) updateDbServiceStatus(dbsvc *quchengv1beta1.DbServ
 	// update dbsvc status
 	var dbsvcstatus quchengv1beta1.DbServiceStatus
 
-	m, err := dbmanage.ParseDbService(context.TODO(), r.Client, dbsvc)
+	m, err := dbmanage.ParseDbService(context.TODO(), r.Client, dbsvc, logger)
 	if err != nil {
 		return err
 	}
@@ -172,31 +175,27 @@ func (r *DbServiceReconciler) updateDbServiceStatus(dbsvc *quchengv1beta1.DbServ
 	dbsvc.Status.Ready = false
 	dbsvc.Status.Global = false
 
-	// create db tool
-	dbtool := util.NewDB(dbsvc)
-	if dbtool == nil {
-		r.EventRecorder.Eventf(dbsvc, corev1.EventTypeWarning, "NotSupport", "Not NotSupport %v", dbsvc.Spec.Type)
-		return nil
-	}
-
 	dbsvc.Status.Global = util.VaildGlobalDatabase(dbsvc.Labels)
 	logger.Debugf("set status.global to %v", dbsvc.Status.Global)
 
 	// check network
-	dbsvc.Status.Address = fmt.Sprintf("%s:%s", dbtool.GenHost(), dbtool.GenPort())
-	if err = dbtool.CheckNetWork(); err != nil {
-		r.EventRecorder.Eventf(dbsvc, corev1.EventTypeWarning, "NetworkUnreachable", "Failed to conn %s for %v", dbsvcstatus.Address, err)
+	dbsvc.Status.Address = m.ServerInfo().Address()
+	if err = m.ServerInfo().CheckNetWork(); err != nil {
+		r.EventRecorder.Eventf(dbsvc, corev1.EventTypeWarning, "NetworkUnreachable", "Failed to conn %s for %v", dbsvc.Status.Address, err)
 		return nil
 	}
 	dbsvc.Status.Network = true
 	logger.Debugf("set status.network to %v", dbsvc.Status.Network)
 
 	// check auth
-	err = m.IsValid(&dbmanage.DbMeta{
+	account := dbmanage.DbMeta{
 		User:     m.ServerInfo().AdminUser(),
 		Password: m.ServerInfo().AdminPassword(),
-	})
+	}
+	err = m.IsValid(&account)
 	if err != nil {
+		logger.Debugf("account info is: %+v", &account)
+		logger.WithError(err).Error("failed to check auth")
 		r.EventRecorder.Eventf(dbsvc, corev1.EventTypeWarning, "AuthFailed", "Failed to auth %s for %v", dbsvcstatus.Address, err)
 		return nil
 	}
