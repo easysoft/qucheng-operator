@@ -156,8 +156,7 @@ func (c *BackupController) process(key string) error {
 		log.Infoln("all of dbs was backed up")
 	}
 
-	bslName := "minio"
-	backupper, err := volume.NewBackupper(ctx, backup, c.schema, c.veleroClients, c.kbClient, log, bslName)
+	backupper, err := volume.NewBackupper(ctx, backup, c.schema, c.veleroClients, c.kbClient, log, backup.Spec.StorageName)
 	if err != nil {
 		return c.updateStatusToFailed(ctx, backup, err, "init volume backupper failed", log)
 	}

@@ -57,7 +57,6 @@ func NewBackupper(ctx context.Context, backup *quchengv1beta1.Backup, schema *ru
 		veleroClients: veleroClient,
 		kbClient:      kbClient,
 		log:           log,
-		bslName:       bslName,
 		tasks:         make(map[string]velerov1.PodVolumeBackup),
 		repoChans:     make(map[string]chan *velerov1.ResticRepository),
 		repoLocks:     make(map[string]*sync.Mutex),
@@ -67,6 +66,13 @@ func NewBackupper(ctx context.Context, backup *quchengv1beta1.Backup, schema *ru
 	if appName := backup.Spec.Selector[quchengv1beta1.SelectorReleaseKey]; appName != "" {
 		b.appName = appName
 	}
+
+	bsl, err := getBsl(ctx, bslName, veleroClient)
+	if err != nil {
+		return nil, err
+	}
+
+	b.bslName = bsl.Name
 
 	pvbInf := velerov1informers.NewFilteredPodVolumeBackupInformer(
 		veleroClient, backup.Namespace, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
@@ -306,4 +312,24 @@ END:
 func (b *backupper) getRepoChan(name string) chan *velerov1.ResticRepository {
 	b.repoChans[name] = make(chan *velerov1.ResticRepository)
 	return b.repoChans[name]
+}
+
+func getBsl(ctx context.Context, name string, veleroClient veleroclientset.Interface) (*velerov1.BackupStorageLocation, error) {
+	if name != "" {
+		bsl, err := veleroClient.VeleroV1().BackupStorageLocations("").Get(ctx, name, metav1.GetOptions{})
+		return bsl, err
+	}
+
+	bslList, err := veleroClient.VeleroV1().BackupStorageLocations("").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, bsl := range bslList.Items {
+		if bsl.Spec.Default {
+			return &bsl, nil
+		}
+	}
+
+	return nil, errors.New("can't find a default backupStorageLocation")
 }
