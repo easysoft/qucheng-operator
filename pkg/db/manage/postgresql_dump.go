@@ -19,7 +19,7 @@ import (
 func (m *postgresqlManage) Dump(meta *DbMeta) (*os.File, error) {
 	var err error
 	commandArgs := m.buildConnectArgs()
-	commandArgs = append(commandArgs, "-d", meta.Name)
+	commandArgs = append(commandArgs, "-d", meta.Name, "-Fc")
 
 	output, err := ioutil.TempFile(backupRoot, "pg_dump.*.sql")
 	if err != nil {
@@ -55,7 +55,7 @@ func (m *postgresqlManage) Dump(meta *DbMeta) (*os.File, error) {
 func (m *postgresqlManage) Restore(meta *DbMeta, input io.Reader) error {
 	var err error
 	commandArgs := m.buildConnectArgs()
-	commandArgs = append(commandArgs, "-d", meta.Name, "-f", "-")
+	commandArgs = append(commandArgs, "-d", meta.Name)
 
 	stderr, _ := ioutil.TempFile(backupRoot, "")
 	defer func() {
