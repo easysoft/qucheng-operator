@@ -9,7 +9,7 @@ FROM hub.qucheng.com/library/god as builder
 
 ENV GOPROXY=https://goproxy.cn,direct
 
-ENV WORKDIR /go/src/gitlab.zcorp.cc/pangu/cne-operator
+ENV WORKDIR /go/src/github.com/easysoft/qucheng-operator
 WORKDIR $WORKDIR
 # Copy the Go Modules manifests
 COPY go.mod go.mod
