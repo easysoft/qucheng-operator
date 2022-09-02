@@ -14,6 +14,7 @@ import (
 
 	dbmanage "github.com/easysoft/qucheng-operator/pkg/db/manage"
 	"github.com/easysoft/qucheng-operator/pkg/logging"
+	"github.com/easysoft/qucheng-operator/pkg/util/ptrtool"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -170,12 +171,12 @@ func (r *DbServiceReconciler) updateDbServiceStatus(dbsvc *quchengv1beta1.DbServ
 		return err
 	}
 
-	dbsvc.Status.Auth = false
-	dbsvc.Status.Network = false
-	dbsvc.Status.Ready = false
-	dbsvc.Status.Global = false
+	dbsvc.Status.Auth = ptrtool.Bool(false)
+	dbsvc.Status.Network = ptrtool.Bool(false)
+	dbsvc.Status.Ready = ptrtool.Bool(false)
+	dbsvc.Status.Global = ptrtool.Bool(false)
 
-	dbsvc.Status.Global = util.VaildGlobalDatabase(dbsvc.Labels)
+	dbsvc.Status.Global = ptrtool.Bool(util.VaildGlobalDatabase(dbsvc.Labels))
 	logger.Debugf("set status.global to %v", dbsvc.Status.Global)
 
 	// check network
@@ -184,7 +185,7 @@ func (r *DbServiceReconciler) updateDbServiceStatus(dbsvc *quchengv1beta1.DbServ
 		r.EventRecorder.Eventf(dbsvc, corev1.EventTypeWarning, "NetworkUnreachable", "Failed to conn %s for %v", dbsvc.Status.Address, err)
 		return nil
 	}
-	dbsvc.Status.Network = true
+	dbsvc.Status.Network = ptrtool.Bool(true)
 	logger.Debugf("set status.network to %v", dbsvc.Status.Network)
 
 	// check auth
@@ -199,8 +200,8 @@ func (r *DbServiceReconciler) updateDbServiceStatus(dbsvc *quchengv1beta1.DbServ
 		r.EventRecorder.Eventf(dbsvc, corev1.EventTypeWarning, "AuthFailed", "Failed to auth %s for %v", dbsvcstatus.Address, err)
 		return nil
 	}
-	dbsvc.Status.Auth = true
-	dbsvc.Status.Ready = true
+	dbsvc.Status.Auth = ptrtool.Bool(true)
+	dbsvc.Status.Ready = ptrtool.Bool(true)
 	logger.Debugf("set status.auth to %v", dbsvc.Status.Auth)
 	logger.Debugf("set status.ready to %v", dbsvc.Status.Ready)
 	r.EventRecorder.Eventf(dbsvc, corev1.EventTypeNormal, "Success", "Success to check %s network & auth", dbsvcstatus.Address)

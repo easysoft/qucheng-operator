@@ -9,6 +9,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"github.com/easysoft/qucheng-operator/pkg/util/ptrtool"
 	"reflect"
 	"time"
 
@@ -113,15 +114,15 @@ func (r *DbReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 	}
 
 	original := db.DeepCopy()
-	db.Status.Ready = false
-	db.Status.Auth = false
-	db.Status.Network = false
+	db.Status.Ready = ptrtool.Bool(false)
+	db.Status.Auth = ptrtool.Bool(false)
+	db.Status.Network = ptrtool.Bool(false)
 
 	m, dbMeta, err := dbmanage.ParseDB(ctx, r.Client, db, r.Logger)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: minRequeueDuration}, r.compareAndPatchStatus(ctx, db, original)
 	}
-	db.Status.Network = true
+	db.Status.Network = ptrtool.Bool(true)
 
 	if err = m.IsValid(dbMeta); err != nil {
 		r.Logger.WithError(err).Error("db auth invalid")
@@ -129,12 +130,11 @@ func (r *DbReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 			r.Logger.WithError(err).Error("create db failed")
 			return ctrl.Result{RequeueAfter: minRequeueDuration}, r.compareAndPatchStatus(ctx, db, original)
 		}
-
 	}
 
 	db.Status.Address = m.ServerInfo().Address()
-	db.Status.Auth = true
-	db.Status.Ready = true
+	db.Status.Auth = ptrtool.Bool(true)
+	db.Status.Ready = ptrtool.Bool(true)
 	return ctrl.Result{RequeueAfter: 60 * minRequeueDuration}, r.compareAndPatchStatus(ctx, db, original)
 }
 

@@ -184,6 +184,10 @@ spec:
                 type: boolean
               ready:
                 type: boolean
+            required:
+            - auth
+            - network
+            - ready
             type: object
         type: object
     served: true

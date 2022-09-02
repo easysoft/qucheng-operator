@@ -189,6 +189,11 @@ spec:
                 type: boolean
               ready:
                 type: boolean
+            required:
+            - auth
+            - global
+            - network
+            - ready
             type: object
         type: object
     served: true
