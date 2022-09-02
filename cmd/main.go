@@ -58,7 +58,7 @@ var (
 	restConfigQPS                     = flag.Int("rest-config-qps", 30, "QPS of rest config.")
 	restConfigBurst                   = flag.Int("rest-config-burst", 50, "Burst of rest config.")
 
-	logLevel string
+	crdPath string
 )
 
 func init() {
@@ -83,6 +83,7 @@ func main() {
 	pflag.BoolVar(&enablePprof, "enable-pprof", true, "Enable pprof for controller manager.")
 	pflag.StringVar(&pprofAddr, "pprof-addr", ":8090", "The address the pprof binds to.")
 	pflag.StringVar(&syncPeriodStr, "sync-period", "1m", "Determines the minimum frequency at which watched resources are reconciled.")
+	pflag.StringVar(&crdPath, "crd-path", "./config/crd/bases", "crd manifests directory")
 	pflag.String(logging.FlagLogLevel, "info", "loglevel")
 	viper.BindPFlag(logging.FlagLogLevel, pflag.Lookup(logging.FlagLogLevel))
 
@@ -95,6 +96,10 @@ func main() {
 		setupLog.Error(err, "init server failed")
 		s.cancelFunc()
 		os.Exit(2)
+	}
+
+	if err = loadAllCrds(s.ctx, s.kubeClientConfig, crdPath, s.logger); err != nil {
+		panic(err)
 	}
 
 	if err = ensureDefaultBackupStorageLocation(s.veleroClient); err != nil {

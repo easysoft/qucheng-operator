@@ -8,7 +8,9 @@
 FROM hub.qucheng.com/library/god as builder
 
 ENV GOPROXY=https://goproxy.cn,direct
-WORKDIR /workspace
+
+ENV WORKDIR /go/src/gitlab.zcorp.cc/pangu/cne-operator
+WORKDIR $WORKDIR
 # Copy the Go Modules manifests
 COPY go.mod go.mod
 COPY go.sum go.sum
@@ -22,7 +24,7 @@ COPY apis/ apis/
 COPY pkg/ pkg/
 COPY controllers/ controllers/
 # Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o cne-operator cmd/main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o cne-operator cmd && cp cne-operator /usr/bin/cne-operator
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
@@ -59,9 +61,11 @@ COPY --from=pg14 /opt/bitnami/postgresql/lib/libpq.so.5.14 /lib/x86_64-linux-gnu
 # copy restic
 COPY --from=hub.qucheng.com/third-party/restic:0.13.1 /usr/bin/restic /usr/bin/restic
 
+ADD config/crd /opt/crd
+
 # copy build asset
-COPY --from=builder /workspace/cne-operator .
+COPY --from=builder /usr/bin/cne-operator /usr/bin/cne-operator
 
 USER 65534:65534
 
-ENTRYPOINT ["/cne-operator"]
+ENTRYPOINT ["/usr/bin/cne-operator", "--crd-path=/opt/crd/bases"]
