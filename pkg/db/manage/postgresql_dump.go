@@ -55,7 +55,7 @@ func (m *postgresqlManage) Dump(meta *DbMeta) (*os.File, error) {
 func (m *postgresqlManage) Restore(meta *DbMeta, input io.Reader) error {
 	var err error
 	commandArgs := m.buildConnectArgs()
-	commandArgs = append(commandArgs, "-d", meta.Name)
+	commandArgs = append(commandArgs, "-c", "-d", meta.Name)
 
 	stderr, _ := ioutil.TempFile(backupRoot, "")
 	defer func() {
