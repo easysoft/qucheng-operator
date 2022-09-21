@@ -49,7 +49,7 @@ type backupper struct {
 
 func NewBackupper(ctx context.Context, backup *quchengv1beta1.Backup, schema *runtime.Scheme,
 	veleroClient veleroclientset.Interface, kbClient client.Client,
-	log logrus.FieldLogger, bslName string,
+	log logrus.FieldLogger, bslName, namespace string,
 ) (Backupper, error) {
 	b := &backupper{
 		backup:        backup,
@@ -67,7 +67,7 @@ func NewBackupper(ctx context.Context, backup *quchengv1beta1.Backup, schema *ru
 		b.appName = appName
 	}
 
-	bsl, err := getBsl(ctx, bslName, veleroClient)
+	bsl, err := getBsl(ctx, bslName, namespace, veleroClient)
 	if err != nil {
 		return nil, err
 	}
@@ -314,9 +314,9 @@ func (b *backupper) getRepoChan(name string) chan *velerov1.ResticRepository {
 	return b.repoChans[name]
 }
 
-func getBsl(ctx context.Context, name string, veleroClient veleroclientset.Interface) (*velerov1.BackupStorageLocation, error) {
+func getBsl(ctx context.Context, name, namespace string, veleroClient veleroclientset.Interface) (*velerov1.BackupStorageLocation, error) {
 	if name != "" {
-		bsl, err := veleroClient.VeleroV1().BackupStorageLocations("").Get(ctx, name, metav1.GetOptions{})
+		bsl, err := veleroClient.VeleroV1().BackupStorageLocations(namespace).Get(ctx, name, metav1.GetOptions{})
 		return bsl, err
 	}
 
