@@ -257,6 +257,9 @@ func (b *backupper) AddTask(namespace string, repo *velerov1.ResticRepository, p
 			Volume:                p.VolumeName,
 			BackupStorageLocation: b.bslName,
 			RepoIdentifier:        repo.Spec.ResticIdentifier,
+			Tags: map[string]string{
+				"backupName": b.backup.Name,
+			},
 		},
 	}
 
