@@ -129,7 +129,7 @@ func (m *postgresqlManage) RecycleDB(meta *DbMeta, real bool) error {
 }
 
 func (m *postgresqlManage) genAdminDsn() string {
-	return fmt.Sprintf("postgres://%s:%s@%s:%d/?sslmode=disable",
+	return fmt.Sprintf("postgres://%s:%s@%s:%d/postgres?sslmode=disable",
 		m.meta.AdminUser, m.meta.AdminPassword, m.meta.Host, m.meta.Port)
 }
 
