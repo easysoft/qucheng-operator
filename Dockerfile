@@ -59,6 +59,7 @@ COPY --from=pg14 /opt/bitnami/postgresql/bin/pg_dump /bin/pg_dump
 COPY --from=pg14 /opt/bitnami/postgresql/bin/pg_restore /bin/pg_restore
 COPY --from=pg14 /opt/bitnami/postgresql/lib/libpq.so.5.14 /lib/x86_64-linux-gnu/libpq.so.5
 COPY --from=pg14 /usr/lib/x86_64-linux-gnu/libedit.so.2.0.59 /lib/x86_64-linux-gnu/libedit.so.2
+COPY --from=pg14 /usr/lib/x86_64-linux-gnu/libbsd.so.0.9.1 /usr/lib/x86_64-linux-gnu/libbsd.so.0
 
 # copy restic
 COPY --from=hub.qucheng.com/third-party/restic:0.13.1 /usr/bin/restic /usr/bin/restic
