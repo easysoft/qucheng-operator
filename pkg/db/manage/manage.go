@@ -20,7 +20,7 @@ type DbManager interface {
 	CreateDB(meta *DbMeta) error
 	RecycleDB(meta *DbMeta, real bool) error
 	Dump(meta *DbMeta) (*os.File, error)
-	Restore(meta *DbMeta, input io.Reader) error
+	Restore(meta *DbMeta, input io.Reader, path string) error
 }
 
 type DbServerInfo interface {

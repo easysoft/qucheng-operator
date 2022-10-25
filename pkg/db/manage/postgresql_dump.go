@@ -7,19 +7,38 @@
 package manage
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strings"
 
 	"github.com/pkg/errors"
 )
 
 func (m *postgresqlManage) Dump(meta *DbMeta) (*os.File, error) {
 	var err error
+
+	var config PostgresqlConfig
+	bs, _ := json.Marshal(meta.Config)
+	_ = json.Unmarshal(bs, &config)
+
 	commandArgs := m.buildConnectArgs()
-	commandArgs = append(commandArgs, "-d", meta.Name, "-Fc")
+	commandArgs = append(commandArgs, "-d", meta.Name)
+
+	dumpFormat := _defaultDumpFormat
+	if config.DumpFormat != "" {
+		dumpFormat = config.DumpFormat
+	}
+	commandArgs = append(commandArgs, "-c", "--if-exists", "-F", dumpFormat)
+
+	if config.DumpCompressLevel != "" {
+		commandArgs = append(commandArgs, "-Z", config.DumpCompressLevel)
+	}
 
 	output, err := ioutil.TempFile(backupRoot, "pg_dump.*.sql")
 	if err != nil {
@@ -52,29 +71,89 @@ func (m *postgresqlManage) Dump(meta *DbMeta) (*os.File, error) {
 	return output, nil
 }
 
-func (m *postgresqlManage) Restore(meta *DbMeta, input io.Reader) error {
+func (m *postgresqlManage) Restore(meta *DbMeta, input io.Reader, path string) error {
 	var err error
-	commandArgs := m.buildConnectArgs()
-	commandArgs = append(commandArgs, "-c", "-d", meta.Name)
 
-	stderr, _ := ioutil.TempFile(backupRoot, "")
+	var config PostgresqlConfig
+	bs, _ := json.Marshal(meta.Config)
+	_ = json.Unmarshal(bs, &config)
+
+	commandArgs := m.buildConnectArgs()
+	commandArgs = append(commandArgs, "-d", meta.Name)
+
+	stderr, _ := ioutil.TempFile(backupRoot, meta.Name+".*.err")
+	stdout, _ := ioutil.TempFile(backupRoot, meta.Name+".*.out")
 	defer func() {
 		stderr.Close()
-		os.Remove(stderr.Name())
+		stdout.Close()
+		//_ = os.Remove(stderr.Name())
+		//_ = os.Remove(stdout.Name())
 	}()
 
-	cmd := exec.Command("pg_restore", commandArgs...)
+	dumpFormat := _defaultDumpFormat
+	filename := filepath.Base(path)
+	parts := strings.SplitN(filename, ".", 4)
+	suffix := parts[len(parts)-1]
+	if strings.HasPrefix(suffix, dumpFormatPlain+".") {
+		dumpFormat = dumpFormatPlain
+	}
+
+	var cmd *exec.Cmd
+	if dumpFormat == dumpFormatPlain {
+		cmd = exec.Command("/bin/psql", commandArgs...)
+	} else {
+		cmd = exec.Command("pg_restore", commandArgs...)
+	}
 	cmd.Env = []string{fmt.Sprintf("PGPASSWORD=%s", m.ServerInfo().AdminPassword())}
-	cmd.Stdin = input
 	cmd.Stderr = stderr
-	err = cmd.Run()
+
+	if filepath.Ext(suffix) == "gz" {
+		gunzipCmd := exec.Command("gunzip", "-c", "-")
+		gunzipCmd.Stdin = input
+
+		pipeOut, e := gunzipCmd.StdoutPipe()
+		if e != nil {
+			return e
+		}
+
+		if err = gunzipCmd.Start(); err != nil {
+			return err
+		}
+		cmd.Stdin = pipeOut
+		if err = cmd.Run(); err != nil {
+			return err
+		}
+
+		if err = gunzipCmd.Wait(); err != nil {
+			return err
+		}
+	} else {
+		cmd.Stdin = input
+		err = cmd.Run()
+	}
 
 	if err != nil {
 		stderr.Seek(0, 0)
 		fileStat, _ := stderr.Stat()
 		errMessage := make([]byte, fileStat.Size())
 		stderr.Read(errMessage)
-		return errors.Wrap(err, string(errMessage))
+		if config.RestoreIgnoreErrorRegex != "" {
+			re, err := regexp.Compile(config.RestoreIgnoreErrorRegex)
+			if err != nil {
+				return errors.Wrap(err, "restore ignore err regex is invalid")
+			}
+			errLines := make([]string, 0)
+			for _, msg := range strings.Split(string(errMessage), "\n") {
+				if !re.MatchString(msg) {
+					errLines = append(errLines, msg)
+				}
+			}
+			if len(errLines) > 0 {
+				return errors.Wrap(err, strings.Join(errLines, "\n"))
+			}
+		} else {
+			return errors.Wrap(err, string(errMessage))
+		}
 	}
 	return nil
 }

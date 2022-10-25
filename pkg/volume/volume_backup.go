@@ -157,6 +157,10 @@ func (b *backupper) FindBackupPvcs(namespace string, selector client.MatchingLab
 	var pvcMap = make(map[string]PvcBackup)
 
 	for _, pod := range podList.Items {
+		// If multi deploys use the same pvc, only one should be backup, the others should cancel pvc backup
+		if pod.Annotations[quchengv1beta1.PvcBackupExcludeAnnotation] == "true" {
+			continue
+		}
 		for _, volume := range pod.Spec.Volumes {
 			if volume.PersistentVolumeClaim != nil {
 				pvcName := volume.PersistentVolumeClaim.ClaimName

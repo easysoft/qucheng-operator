@@ -177,7 +177,7 @@ func (r *DbServiceReconciler) updateDbServiceStatus(dbsvc *quchengv1beta1.DbServ
 	dbsvc.Status.Global = ptrtool.Bool(false)
 
 	dbsvc.Status.Global = ptrtool.Bool(util.VaildGlobalDatabase(dbsvc.Labels))
-	logger.Debugf("set status.global to %v", dbsvc.Status.Global)
+	logger.Debugf("set status.global to %v", *dbsvc.Status.Global)
 
 	// check network
 	dbsvc.Status.Address = m.ServerInfo().Address()
@@ -186,7 +186,7 @@ func (r *DbServiceReconciler) updateDbServiceStatus(dbsvc *quchengv1beta1.DbServ
 		return nil
 	}
 	dbsvc.Status.Network = ptrtool.Bool(true)
-	logger.Debugf("set status.network to %v", dbsvc.Status.Network)
+	logger.Debugf("set status.network to %v", *dbsvc.Status.Network)
 
 	// check auth
 	account := dbmanage.DbMeta{
@@ -202,8 +202,8 @@ func (r *DbServiceReconciler) updateDbServiceStatus(dbsvc *quchengv1beta1.DbServ
 	}
 	dbsvc.Status.Auth = ptrtool.Bool(true)
 	dbsvc.Status.Ready = ptrtool.Bool(true)
-	logger.Debugf("set status.auth to %v", dbsvc.Status.Auth)
-	logger.Debugf("set status.ready to %v", dbsvc.Status.Ready)
+	logger.Debugf("set status.auth to %v", *dbsvc.Status.Auth)
+	logger.Debugf("set status.ready to %v", *dbsvc.Status.Ready)
 	r.EventRecorder.Eventf(dbsvc, corev1.EventTypeNormal, "Success", "Success to check %s network & auth", dbsvcstatus.Address)
 
 	return nil

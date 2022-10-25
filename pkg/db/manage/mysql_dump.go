@@ -53,7 +53,7 @@ func (m *mysqlManage) Dump(meta *DbMeta) (*os.File, error) {
 	return output, nil
 }
 
-func (m *mysqlManage) Restore(meta *DbMeta, input io.Reader) error {
+func (m *mysqlManage) Restore(meta *DbMeta, input io.Reader, path string) error {
 	var err error
 	extraFile := m.buildExtraFile()
 	commandArgs := []string{"--defaults-extra-file=" + extraFile, "--database", meta.Name}

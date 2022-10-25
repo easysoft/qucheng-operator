@@ -18,6 +18,7 @@ package qucheng
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -157,24 +158,6 @@ func (r *DbBackupReconciler) updateStatusToFailed(ctx context.Context, dbb *quch
 	return ctrl.Result{}, err
 }
 
-//func (r *DbBackupReconciler) processDump(db *quchengv1beta1.Db) (*db.AccessInfo, *os.File, error) {
-//	log := r.logger
-//	p := mysql.NewParser(r.Client, db, r.logger)
-//	access, err := p.ParseAccessInfo()
-//	if err != nil {
-//		log.WithError(err).Error("parse db access info failed")
-//		return nil, nil, err
-//	}
-//
-//	backupReq := mysql.NewBackupRequest(access, db.Spec.DbName)
-//	err = backupReq.Run()
-//	if err != nil {
-//		return nil, nil, errors.New(backupReq.Errors())
-//	}
-//
-//	return access, backupReq.BackupFile, nil
-//}
-
 func (r *DbBackupReconciler) processPersistent(absPath string, fd *os.File) (int64, error) {
 	store := storage.NewFileStorage()
 	defer func() {
@@ -190,6 +173,20 @@ func (r *DbBackupReconciler) genPersistentPath(appName, dbType string, db *quche
 	switch dbType {
 	case quchengv1beta1.DbTypeMysql:
 		suffix = "sql"
+	case quchengv1beta1.DbTypePostgresql:
+		// dump file like .sql p.sql .sql.gz p.sql.gz
+		var config dbmanage.PostgresqlConfig
+		bs, _ := json.Marshal(db.Spec.Config)
+		_ = json.Unmarshal(bs, &config)
+
+		suffix = "sql"
+		if config.DumpFormat != "" {
+			suffix = config.DumpFormat + "." + suffix
+		}
+
+		if config.DumpCompressLevel != "" {
+			suffix = suffix + ".gz"
+		}
 	}
 	return fmt.Sprintf("%s/%s/%s.%s.%s.%s", db.Namespace, appName, dbType, db.Spec.DbName,
 		time.Now().Format("20060102150405"), suffix)

@@ -265,6 +265,9 @@ func (c *RestoreController) rebuildPodPvcRelation(pvblist *velerov1.PodVolumeBac
 					if pi.confirmed {
 						continue
 					}
+					if vol.Name != pi.pvb.Spec.Volume {
+						continue
+					}
 					if pi.podInfo.Name != pod.Name {
 						pi.podInfo = v1.ObjectReference{
 							Kind:      "Pod",

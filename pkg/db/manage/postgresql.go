@@ -22,6 +22,7 @@ const (
 type postgresqlManage struct {
 	meta   DbServiceMeta
 	logger logrus.FieldLogger
+	config PostgresqlConfig
 }
 
 func newPostgresqlManager(meta DbServiceMeta, logger logrus.FieldLogger) (DbManager, error) {

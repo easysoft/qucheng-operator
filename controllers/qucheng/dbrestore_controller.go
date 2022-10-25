@@ -112,7 +112,7 @@ func (r *DbRestoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// 		object store should clean temp files
 	defer restoreFd.Close()
 
-	err = m.Restore(dbMeta, restoreFd)
+	err = m.Restore(dbMeta, restoreFd, dbr.Spec.Path)
 	if err != nil {
 		return r.updateStatusToFailed(ctx, &dbr, err, "restore execute failed", log)
 	}

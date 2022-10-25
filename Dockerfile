@@ -54,6 +54,7 @@ COPY --from=mysql57 /usr/lib/x86_64-linux-gnu/libatomic.so.1 /usr/lib/x86_64-lin
 
 
 # postgresql binary and lib
+COPY --from=pg14 /opt/bitnami/postgresql/bin/psql /bin/psql
 COPY --from=pg14 /opt/bitnami/postgresql/bin/pg_dump /bin/pg_dump
 COPY --from=pg14 /opt/bitnami/postgresql/bin/pg_restore /bin/pg_restore
 COPY --from=pg14 /opt/bitnami/postgresql/lib/libpq.so.5.14 /lib/x86_64-linux-gnu/libpq.so.5
