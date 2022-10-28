@@ -137,7 +137,7 @@ func (r *restorer) WaitSync(ctx context.Context) error {
 	log.Info("start wait sync")
 	for {
 		select {
-		case <-time.After(time.Minute):
+		case <-time.After(5 * time.Minute):
 			err = errors.New("timed out waiting for db restore to become completed")
 			goto END
 		case <-ctx.Done():

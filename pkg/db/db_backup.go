@@ -141,7 +141,7 @@ func (b *backupper) WaitSync(ctx context.Context) error {
 	log.Info("start wait sync")
 	for {
 		select {
-		case <-time.After(time.Minute):
+		case <-time.After(5 * time.Minute):
 			err = errors.New("timed out waiting for restic repository to become ready")
 			goto END
 		case <-ctx.Done():
