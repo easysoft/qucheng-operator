@@ -86,8 +86,8 @@ func (m *postgresqlManage) Restore(meta *DbMeta, input io.Reader, path string) e
 	defer func() {
 		stderr.Close()
 		stdout.Close()
-		//_ = os.Remove(stderr.Name())
-		//_ = os.Remove(stdout.Name())
+		_ = os.Remove(stderr.Name())
+		_ = os.Remove(stdout.Name())
 	}()
 
 	dumpFormat := _defaultDumpFormat
