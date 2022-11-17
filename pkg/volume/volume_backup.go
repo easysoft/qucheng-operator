@@ -9,6 +9,7 @@ package volume
 import (
 	"context"
 	"fmt"
+	bsltool "github.com/easysoft/qucheng-operator/pkg/util/bsl"
 	"sync"
 	"time"
 
@@ -67,7 +68,7 @@ func NewBackupper(ctx context.Context, backup *quchengv1beta1.Backup, schema *ru
 		b.appName = appName
 	}
 
-	bsl, err := getBsl(ctx, bslName, namespace, veleroClient)
+	bsl, err := bsltool.GetBsl(ctx, bslName, namespace, veleroClient)
 	if err != nil {
 		return nil, err
 	}
@@ -319,24 +320,4 @@ END:
 func (b *backupper) getRepoChan(name string) chan *velerov1.ResticRepository {
 	b.repoChans[name] = make(chan *velerov1.ResticRepository)
 	return b.repoChans[name]
-}
-
-func getBsl(ctx context.Context, name, namespace string, veleroClient veleroclientset.Interface) (*velerov1.BackupStorageLocation, error) {
-	if name != "" {
-		bsl, err := veleroClient.VeleroV1().BackupStorageLocations(namespace).Get(ctx, name, metav1.GetOptions{})
-		return bsl, err
-	}
-
-	bslList, err := veleroClient.VeleroV1().BackupStorageLocations("").List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	for _, bsl := range bslList.Items {
-		if bsl.Spec.Default {
-			return &bsl, nil
-		}
-	}
-
-	return nil, errors.New("can't find a default backupStorageLocation")
 }

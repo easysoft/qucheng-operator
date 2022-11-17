@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/spf13/viper"
 	"os"
 	"time"
 
@@ -118,7 +119,7 @@ func (r *DbBackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	appName := dbb.Labels[quchengv1beta1.ApplicationNameLabel]
 	path := r.genPersistentPath(appName, string(m.DbType()), &db)
 
-	size, err := r.processPersistent(path, backupFd)
+	size, err := r.processPersistent(ctx, path, backupFd, dbb.Spec.BackupStorageLocation)
 	if err != nil {
 		return r.updateStatusToFailed(ctx, &dbb, err, "put backup file to persistent storage failed", log)
 	}
@@ -158,8 +159,19 @@ func (r *DbBackupReconciler) updateStatusToFailed(ctx context.Context, dbb *quch
 	return ctrl.Result{}, err
 }
 
-func (r *DbBackupReconciler) processPersistent(absPath string, fd *os.File) (int64, error) {
-	store := storage.NewFileStorage()
+func (r *DbBackupReconciler) processPersistent(ctx context.Context, absPath string, fd *os.File, storageName string) (int64, error) {
+	var store storage.Storage
+	var err error
+	if storageName != "" {
+		r.logger.Infof("persistent with storage %s", storageName)
+		store, err = GetDbObjectStorage(ctx, r.Client, storageName, viper.GetString("pod-namespace"))
+		if err != nil {
+			return 0, err
+		}
+	} else {
+		r.logger.Info("persistent to filesystem")
+		store = storage.NewFileStorage()
+	}
 	defer func() {
 		fd.Close()
 		os.Remove(fd.Name())
@@ -167,6 +179,23 @@ func (r *DbBackupReconciler) processPersistent(absPath string, fd *os.File) (int
 	size, err := store.PutBackup(absPath, fd)
 	return size, err
 }
+
+//func (r *DbBackupReconciler) getObjectStorage(ctx context.Context, storageName string) (storage.Storage, error) {
+//	var bsl velerov1.BackupStorageLocation
+//	err := r.Get(ctx, client.ObjectKey{Name: storageName, Namespace: viper.GetString("pod-namespace")}, &bsl)
+//	if err != nil {
+//		return nil, err
+//	}
+//	config := bsl.Spec.Config
+//	store, err := storage.NewObjectStorage(ctx,
+//		config["s3Url"],
+//		config["accessKey"],
+//		config["secretKey"],
+//		config["region"],
+//		config["bucketDb"],
+//	)
+//	return store, err
+//}
 
 func (r *DbBackupReconciler) genPersistentPath(appName, dbType string, db *quchengv1beta1.Db) string {
 	var suffix = "dump"

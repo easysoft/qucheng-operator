@@ -113,8 +113,9 @@ func (r *restorer) AddTask(namespace string, dbb *quchengv1beta1.DbBackup) {
 			},
 		},
 		Spec: quchengv1beta1.DbRestoreSpec{
-			Db:   dbb.Spec.Db,
-			Path: dbb.Status.Path,
+			Db:                    dbb.Spec.Db,
+			Path:                  dbb.Status.Path,
+			BackupStorageLocation: dbb.Spec.BackupStorageLocation,
 		},
 	}
 	err := controllerutil.SetControllerReference(r.restore, &dbr, r.schema)

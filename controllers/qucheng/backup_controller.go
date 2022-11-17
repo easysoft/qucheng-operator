@@ -132,7 +132,7 @@ func (c *BackupController) process(key string) error {
 	ctx, cannelFunc := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cannelFunc()
 
-	dbBackupper, err := db.NewBackupper(ctx, backup, c.schema, c.kbClient, c.clients, log)
+	dbBackupper, err := db.NewBackupper(ctx, backup, c.schema, c.veleroClients, c.kbClient, c.clients, log, backup.Spec.StorageName, c.namespace)
 	if err != nil {
 		return c.updateStatusToFailed(ctx, backup, err, "init db backupper failed", log)
 	}

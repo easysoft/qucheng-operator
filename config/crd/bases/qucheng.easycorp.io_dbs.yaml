@@ -149,6 +149,9 @@ spec:
               config:
                 additionalProperties:
                   type: string
+                description: "for postgresql: restore_ignore_error_regex: '' dump_format:
+                  'c|d|t|p'  # custom(default), directory, tar, plain text dump_compress_level:
+                  '0-9' \n for mysql: character_set: '' grant_super_privilege: \"true|false\""
                 type: object
               dbName:
                 type: string

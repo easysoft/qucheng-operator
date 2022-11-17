@@ -18,6 +18,8 @@ package qucheng
 
 import (
 	"context"
+	"github.com/spf13/viper"
+	"os"
 
 	dbmanage "github.com/easysoft/qucheng-operator/pkg/db/manage"
 
@@ -103,14 +105,27 @@ func (r *DbRestoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return r.updateStatusToFailed(ctx, &dbr, err, "parse db access info failed", log)
 	}
 
-	store := storage.NewFileStorage()
+	var store storage.Storage
+	if dbr.Spec.BackupStorageLocation != "" {
+		store, err = GetDbObjectStorage(ctx, r.Client, dbr.Spec.BackupStorageLocation, viper.GetString("pod-namespace"))
+		if err != nil {
+			return r.updateStatusToFailed(ctx, &dbr, err, "create object client failed", log)
+		}
+		log.Infof("restore with objectStorage %s", dbr.Spec.BackupStorageLocation)
+	} else {
+		store = storage.NewFileStorage()
+		log.Infof("restore from filesystem")
+	}
+
 	restoreFd, err := store.PullBackup(dbr.Spec.Path)
 	if err != nil {
 		return r.updateStatusToFailed(ctx, &dbr, err, "download restore file failed", log)
 	}
-	// todo: file store won't delete source file
-	// 		object store should clean temp files
+
 	defer restoreFd.Close()
+	if store.Kind() == storage.KindObjectSystem {
+		defer os.Remove(restoreFd.Name())
+	}
 
 	err = m.Restore(dbMeta, restoreFd, dbr.Spec.Path)
 	if err != nil {

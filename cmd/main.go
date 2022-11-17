@@ -316,11 +316,19 @@ func setRestConfig(c *rest.Config) {
 	}
 }
 
+/*
+ensureDefaultBackupStorageLocation try to create the default minio bsl if not exist,
+and update configs for feature `db s3 object` compatible
+*/
 func ensureDefaultBackupStorageLocation(c veleroclientset.Interface) error {
 	bslName := "minio"
 	namespace := viper.GetString("pod-namespace")
 
-	_, err := c.VeleroV1().BackupStorageLocations(namespace).Get(context.TODO(), bslName, metav1.GetOptions{})
+	// the ak sk should be export as environments for create or update
+	ak := viper.GetString("MINIO_ACCESS_KEY")
+	sk := viper.GetString("MINIO_SECRET_KEY")
+
+	currBsl, err := c.VeleroV1().BackupStorageLocations(namespace).Get(context.TODO(), bslName, metav1.GetOptions{})
 	if err != nil {
 		bsl := velerov1.BackupStorageLocation{
 			ObjectMeta: metav1.ObjectMeta{
@@ -330,10 +338,13 @@ func ensureDefaultBackupStorageLocation(c veleroclientset.Interface) error {
 				Provider: "aws",
 				Config: map[string]string{
 					"bucket":           "volumes",
+					"bucketDb":         "dbs", // use `dbs` as default db-backup bucket
 					"profile":          "default",
 					"region":           "volumes",
 					"s3ForcePathStyle": "true",
 					"s3Url":            "http://cne-operator-minio:9000",
+					"accessKey":        ak,
+					"secretKey":        sk,
 				},
 				Credential: &v1.SecretKeySelector{
 					LocalObjectReference: v1.LocalObjectReference{
@@ -353,6 +364,13 @@ func ensureDefaultBackupStorageLocation(c veleroclientset.Interface) error {
 			},
 		}
 		_, err = c.VeleroV1().BackupStorageLocations(namespace).Create(context.TODO(), &bsl, metav1.CreateOptions{})
+	} else {
+		if ak != "" && sk != "" {
+			currBsl.Spec.Config["bucketDb"] = "dbs"
+			currBsl.Spec.Config["accessKey"] = ak
+			currBsl.Spec.Config["secretKey"] = sk
+			_, err = c.VeleroV1().BackupStorageLocations(namespace).Update(context.TODO(), currBsl, metav1.UpdateOptions{})
+		}
 	}
 	return err
 }

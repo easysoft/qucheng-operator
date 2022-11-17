@@ -44,6 +44,8 @@ spec:
           spec:
             description: DbBackupSpec defines the desired state of DbBackup
             properties:
+              backupStorageLocation:
+                type: string
               db:
                 description: 'ObjectReference contains enough information to let you
                   inspect or modify the referred object. --- New uses of this type

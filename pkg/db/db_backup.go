@@ -9,6 +9,8 @@ package db
 import (
 	"context"
 	"fmt"
+	bsltool "github.com/easysoft/qucheng-operator/pkg/util/bsl"
+	veleroclientset "github.com/vmware-tanzu/velero/pkg/generated/clientset/versioned"
 	"time"
 
 	quchengv1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
@@ -39,11 +41,12 @@ type backupper struct {
 	tasks         map[string]quchengv1beta1.DbBackup
 	dbbChan       chan *quchengv1beta1.DbBackup
 	appName       string
+	bslName       string
 }
 
 func NewBackupper(ctx context.Context, backup *quchengv1beta1.Backup, schema *runtime.Scheme,
-	kbClient client.Client, quickonClient clientset.Interface,
-	log logrus.FieldLogger,
+	veleroClient veleroclientset.Interface, kbClient client.Client, quickonClient clientset.Interface, log logrus.FieldLogger,
+	bslName, namespace string,
 ) (Backupper, error) {
 	b := &backupper{
 		schema:        schema,
@@ -51,6 +54,7 @@ func NewBackupper(ctx context.Context, backup *quchengv1beta1.Backup, schema *ru
 		kbClient:      kbClient,
 		quickonClient: quickonClient,
 		log:           log,
+		bslName:       bslName,
 		tasks:         make(map[string]quchengv1beta1.DbBackup),
 		dbbChan:       make(chan *quchengv1beta1.DbBackup),
 	}
@@ -58,6 +62,13 @@ func NewBackupper(ctx context.Context, backup *quchengv1beta1.Backup, schema *ru
 	if appName := backup.Spec.Selector[quchengv1beta1.SelectorReleaseKey]; appName != "" {
 		b.appName = appName
 	}
+
+	bsl, err := bsltool.GetBsl(ctx, bslName, namespace, veleroClient)
+	if err != nil {
+		return nil, err
+	}
+
+	b.bslName = bsl.Name
 
 	inf := quickonv1binfs.NewFilteredDbBackupInformer(quickonClient,
 		backup.Namespace, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
@@ -119,8 +130,11 @@ func (b *backupper) AddTask(namespace string, db *quchengv1beta1.Db) {
 				Name: db.Name, Namespace: db.Namespace,
 				UID: db.UID,
 			},
+			BackupStorageLocation: b.bslName,
 		},
 	}
+	log.Infof("backup spec: %+v", dbb.Spec)
+	log.Infof("backup storage %s", b.bslName)
 	err := controllerutil.SetControllerReference(b.backup, &dbb, b.schema)
 	if err != nil {
 		log.WithError(err).Error("setup reference failed")

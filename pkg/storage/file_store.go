@@ -51,3 +51,7 @@ func (f *fileStorage) PullBackup(path string) (*os.File, error) {
 	fd, err := os.Open(fullPath)
 	return fd, err
 }
+
+func (f *fileStorage) Kind() Kind {
+	return KindFileSystem
+}
