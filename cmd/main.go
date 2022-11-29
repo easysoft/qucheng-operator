@@ -18,6 +18,7 @@ import (
 	"github.com/easysoft/qucheng-operator/pkg/logging"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	_ "go.uber.org/automaxprocs"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
