@@ -17,7 +17,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const FlagLogLevel = "log-level"
+const (
+	FlagLogLevel  = "log-level"
+	FlagLogModule = "log-module"
+)
 
 var (
 	defaultLogger *logrus.Logger
@@ -31,7 +34,10 @@ func DefaultLogger() *logrus.Logger {
 }
 
 func NewLogger() *logrus.Logger {
-	moduleName := readModuleName()
+	moduleName := viper.GetString(FlagLogModule)
+	if moduleName == "" {
+		moduleName = readModuleName()
+	}
 
 	logger := logrus.New()
 	logger.SetReportCaller(true)

@@ -71,4 +71,4 @@ COPY --from=builder /usr/bin/cne-operator /usr/bin/cne-operator
 
 USER 65534:65534
 
-ENTRYPOINT ["/usr/bin/cne-operator", "--crd-path=/opt/crd/bases"]
+ENTRYPOINT ["/usr/bin/cne-operator", "--crd-path=/opt/crd/bases", "--log-module=github.com/easysoft/qucheng-operator"]

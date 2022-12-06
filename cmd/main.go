@@ -85,8 +85,11 @@ func main() {
 	pflag.StringVar(&pprofAddr, "pprof-addr", ":8090", "The address the pprof binds to.")
 	pflag.StringVar(&syncPeriodStr, "sync-period", "1m", "Determines the minimum frequency at which watched resources are reconciled.")
 	pflag.StringVar(&crdPath, "crd-path", "./config/crd/bases", "crd manifests directory")
+
 	pflag.String(logging.FlagLogLevel, "info", "loglevel")
 	viper.BindPFlag(logging.FlagLogLevel, pflag.Lookup(logging.FlagLogLevel))
+	pflag.String(logging.FlagLogModule, "", "go module name, will be truncated from log lines.")
+	viper.BindPFlag(logging.FlagLogModule, pflag.Lookup(logging.FlagLogModule))
 
 	viper.BindPFlag("pod-namespace", pflag.Lookup("leader-election-namespace"))
 	pflag.Parse()
