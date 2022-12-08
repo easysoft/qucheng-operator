@@ -9,8 +9,7 @@ package manage
 const (
 	_defaultDumpFormat = "c"
 
-	dumpFormatCustom = _defaultDumpFormat
-	dumpFormatPlain  = "p"
+	dumpFormatPlain = "p"
 )
 
 type PostgresqlConfig struct {

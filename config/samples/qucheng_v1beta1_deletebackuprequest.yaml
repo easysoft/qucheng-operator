@@ -1,0 +1,6 @@
+apiVersion: qucheng.easycorp.io/v1beta1
+kind: DeleteBackupRequest
+metadata:
+  name: deletebackuprequest-sample
+spec:
+  # TODO(user): Add fields here

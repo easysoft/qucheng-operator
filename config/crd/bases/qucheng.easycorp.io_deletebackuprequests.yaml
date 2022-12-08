@@ -1,0 +1,71 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.0
+  creationTimestamp: null
+  name: deletebackuprequests.qucheng.easycorp.io
+spec:
+  group: qucheng.easycorp.io
+  names:
+    kind: DeleteBackupRequest
+    listKind: DeleteBackupRequestList
+    plural: deletebackuprequests
+    singular: deletebackuprequest
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: Delete backup request status such as New/InProgress
+      jsonPath: .status.phase
+      name: Status
+      type: string
+    name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: DeleteBackupRequest is the Schema for the deletebackuprequests
+          API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: DeleteBackupRequestSpec defines the desired state of DeleteBackupRequest
+            properties:
+              backupName:
+                type: string
+            required:
+            - backupName
+            type: object
+          status:
+            description: DeleteBackupRequestStatus defines the observed state of DeleteBackupRequest
+            properties:
+              completionTimestamp:
+                format: date-time
+                type: string
+              message:
+                type: string
+              phase:
+                type: string
+              reason:
+                type: string
+              startTimestamp:
+                format: date-time
+                type: string
+            required:
+            - phase
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

@@ -1,0 +1,24 @@
+# permissions for end users to edit deletebackuprequests.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: deletebackuprequest-editor-role
+rules:
+- apiGroups:
+  - qucheng.easycorp.io
+  resources:
+  - deletebackuprequests
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - qucheng.easycorp.io
+  resources:
+  - deletebackuprequests/status
+  verbs:
+  - get

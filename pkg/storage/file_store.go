@@ -52,6 +52,16 @@ func (f *fileStorage) PullBackup(path string) (*os.File, error) {
 	return fd, err
 }
 
+func (f *fileStorage) RemoveBackup(path string) error {
+	fullPath := filepath.Join(_defaultBackupRoot, path)
+	_, err := os.Stat(fullPath)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	err = os.Remove(fullPath)
+	return err
+}
+
 func (f *fileStorage) Kind() Kind {
 	return KindFileSystem
 }

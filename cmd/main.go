@@ -15,17 +15,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/easysoft/qucheng-operator/pkg/credentials"
 	"github.com/easysoft/qucheng-operator/pkg/logging"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	_ "go.uber.org/automaxprocs"
-
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/easysoft/qucheng-operator/pkg/credentials"
+	"github.com/vmware-tanzu/velero/pkg/label"
 	"github.com/vmware-tanzu/velero/pkg/restic"
 	"github.com/vmware-tanzu/velero/pkg/util/filesystem"
+	_ "go.uber.org/automaxprocs"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -111,6 +110,11 @@ func main() {
 		os.Exit(3)
 	}
 
+	if err = updateResticRepoLabels(s.veleroClient); err != nil {
+		setupLog.Error(err, "update restic repo labels failed")
+		os.Exit(4)
+	}
+
 	resticRepoRec := veleroctrls.NewResticRepoReconciler(leaderElectionNamespace, s.logger, s.mgr.GetClient(), restic.DefaultMaintenanceFrequency, s.resticManager)
 	if err = resticRepoRec.SetupWithManager(s.mgr); err != nil {
 		setupLog.Error(err, "init restic repo reconciler failed")
@@ -121,6 +125,9 @@ func main() {
 	}
 	if err = qucheng.NewDbRestoreReconciler(s.mgr.GetClient(), s.mgr.GetScheme(), s.logger).SetupWithManager(s.mgr); err != nil {
 		setupLog.Error(err, "init dbRestore reconciler failed")
+	}
+	if err = qucheng.NewBackupDeletionReconciler(s.mgr.GetClient(), s.mgr.GetScheme(), s.logger, s.resticManager).SetupWithManager(s.mgr); err != nil {
+		setupLog.Error(err, "init deleteBackupRequest reconciler failed")
 	}
 
 	controllers := make(map[string]base.Controller)
@@ -377,4 +384,31 @@ func ensureDefaultBackupStorageLocation(c veleroclientset.Interface) error {
 		}
 	}
 	return err
+}
+
+func updateResticRepoLabels(c veleroclientset.Interface) error {
+	namespace := viper.GetString("pod-namespace")
+	l, err := c.VeleroV1().ResticRepositories(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, repo := range l.Items {
+		vn := label.GetValidName(strings.ReplaceAll(repo.Spec.VolumeNamespace, "/", "-"))
+		bsl := repo.Spec.BackupStorageLocation
+		if repo.Labels[velerov1.ResticVolumeNamespaceLabel] != vn {
+			repo.Labels[velerov1.ResticVolumeNamespaceLabel] = vn
+		}
+
+		if repo.Labels[velerov1.StorageLocationLabel] != bsl {
+			repo.Labels[velerov1.StorageLocationLabel] = bsl
+		}
+
+		_, err = c.VeleroV1().ResticRepositories(namespace).Update(context.TODO(), &repo, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -1,0 +1,20 @@
+# permissions for end users to view deletebackuprequests.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: deletebackuprequest-viewer-role
+rules:
+- apiGroups:
+  - qucheng.easycorp.io
+  resources:
+  - deletebackuprequests
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - qucheng.easycorp.io
+  resources:
+  - deletebackuprequests/status
+  verbs:
+  - get

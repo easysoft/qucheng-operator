@@ -10,6 +10,7 @@ resources:
 - third_party/velero_resticrepositories.yaml
 - bases/qucheng.easycorp.io_dbbackups.yaml
 - bases/qucheng.easycorp.io_dbrestores.yaml
+- bases/qucheng.easycorp.io_deletebackuprequests.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
@@ -22,6 +23,7 @@ patchesStrategicMerge:
 #- patches/webhook_in_globaldbs.yaml
 #- patches/webhook_in_dbbackups.yaml
 #- patches/webhook_in_dbrestores.yaml
+#- patches/webhook_in_deletebackuprequests.yaml
 #+kubebuilder:scaffold:crdkustomizewebhookpatch
 
 # [CERTMANAGER] To enable cert-manager, uncomment all the sections with [CERTMANAGER] prefix.
@@ -33,6 +35,7 @@ patchesStrategicMerge:
 #- patches/cainjection_in_globaldbs.yaml
 #- patches/cainjection_in_dbbackups.yaml
 #- patches/cainjection_in_dbrestores.yaml
+#- patches/cainjection_in_deletebackuprequests.yaml
 #+kubebuilder:scaffold:crdkustomizecainjectionpatch
 
 # the following config is for teaching kustomize how to do kustomization for CRDs.

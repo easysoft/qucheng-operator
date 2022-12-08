@@ -1,16 +1,23 @@
+// Copyright (c) 2022-2022 北京渠成软件有限公司(Beijing Qucheng Software Co., Ltd. www.qucheng.com) All rights reserved.
+// Use of this source code is covered by the following dual licenses:
+// (1) Z PUBLIC LICENSE 1.2 (ZPL 1.2)
+// (2) Affero General Public License 3.0 (AGPL 3.0)
+// license that can be found in the LICENSE file.
+
 package main
 
 import (
 	"context"
-	"github.com/sirupsen/logrus"
 	"io/ioutil"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"path/filepath"
+	"reflect"
+
+	"github.com/sirupsen/logrus"
+	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/rest"
-	"path/filepath"
-	"reflect"
 )
 
 func loadAllCrds(ctx context.Context, config *rest.Config, directory string, logger logrus.FieldLogger) error {

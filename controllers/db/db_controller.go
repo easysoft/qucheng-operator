@@ -9,29 +9,26 @@ package db
 import (
 	"context"
 	"fmt"
-	"github.com/easysoft/qucheng-operator/pkg/util/ptrtool"
 	"reflect"
 	"time"
 
-	"github.com/easysoft/qucheng-operator/pkg/logging"
-
+	quchengv1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
 	dbmanage "github.com/easysoft/qucheng-operator/pkg/db/manage"
-	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
-
+	"github.com/easysoft/qucheng-operator/pkg/logging"
+	"github.com/easysoft/qucheng-operator/pkg/util/ptrtool"
+	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	quchengv1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
-	"github.com/sirupsen/logrus"
 )
 
 const (

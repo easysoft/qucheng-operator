@@ -8,10 +8,10 @@ package db
 
 import (
 	"context"
-	"github.com/sirupsen/logrus"
 
 	quchengv1beta1 "github.com/easysoft/qucheng-operator/apis/qucheng/v1beta1"
 	dbmanage "github.com/easysoft/qucheng-operator/pkg/db/manage"
+	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

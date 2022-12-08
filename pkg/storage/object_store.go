@@ -8,16 +8,15 @@ package storage
 
 import (
 	"context"
-	"github.com/easysoft/qucheng-operator/pkg/logging"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
-)
 
-const ()
+	"github.com/easysoft/qucheng-operator/pkg/logging"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
+)
 
 type objectStorage struct {
 	ctx      context.Context
@@ -29,7 +28,6 @@ type objectStorage struct {
 
 func NewObjectStorage(ctx context.Context, endpoint, accessKey, secretKey, location, bucket string) (Storage, error) {
 	var client *minio.Client
-	var err error
 
 	// velero's endpoint style allow contain schema, we need parse the real host
 	ep, err := url.Parse(endpoint)
@@ -76,7 +74,7 @@ func NewObjectStorage(ctx context.Context, endpoint, accessKey, secretKey, locat
 	}
 
 	// check bucket exists. If not, try to create.
-	exist, err := client.BucketExists(ctx, bucket)
+	exist, _ := client.BucketExists(ctx, bucket)
 	if !exist {
 		err = client.MakeBucket(ctx, bucket, minio.MakeBucketOptions{Region: location})
 		if err != nil {
@@ -109,6 +107,19 @@ func (o *objectStorage) PullBackup(path string) (*os.File, error) {
 	}
 	fd, err := os.Open(localPath)
 	return fd, err
+}
+
+func (o *objectStorage) RemoveBackup(path string) error {
+	_, err := o.client.StatObject(o.ctx, o.bucket, path, minio.StatObjectOptions{})
+	if err != nil {
+		return err
+	}
+
+	if err := o.client.RemoveObject(o.ctx, o.bucket, path, minio.RemoveObjectOptions{}); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (o *objectStorage) Kind() Kind {
