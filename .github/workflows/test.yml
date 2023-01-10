@@ -17,7 +17,7 @@ jobs:
         with:
           config: hack/kind/kind.yaml
       - name: install kubectl
-        uses: azure/setup-kubectl@v3.0
+        uses: azure/setup-kubectl@v3.2
       - name: install helm
         uses: azure/setup-helm@v3
       - name: Install Go
